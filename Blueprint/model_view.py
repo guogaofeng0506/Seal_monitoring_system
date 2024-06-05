@@ -830,7 +830,8 @@ def image_show():
 
     equipment_id = request.args.get('equipment_id',None)
     type = request.args.get('type') if  request.args.get('type') else 0
-
+    # 获取指定的分辨率值 img_resolution
+    img_resolution = request.args.get('img_resolution')
 
     equipment_data = db.session.query(Equipment.id,Equipment.equipment_uname,Equipment.equipment_password,Equipment.equipment_ip,Equipment.equipment_type,
                                       Equipment.parent_id,Equipment.code
@@ -848,7 +849,7 @@ def image_show():
 
             equipment_data.id,
             int(type),
-
+            img_resolution
 
         )
         return jsonify(result)

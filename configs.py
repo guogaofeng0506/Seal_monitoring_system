@@ -33,9 +33,9 @@ class SSH_Func(object):
     def __init__(self):
 
         self.Folder_SSH = '/var/model_algorithm_package/'  # 华为云上传文件默认地址
-        self.ssh_host = '192.168.14.104'
-        self.ssh_user = 'root'
-        self.ssh_password = 'xspeed'
+        self.ssh_host = '192.168.14.105'
+        self.ssh_user = 'admin'
+        self.ssh_password = 'admin'
         self.ssh = paramiko.SSHClient()
 
     # ssh连接华为云服务器
@@ -504,8 +504,9 @@ def children_list_get_code(children_list):
 
 
 # 将h265流转换opencv可编译格式返回
-def get_frame_from_rtsp(rtsp_url):
+def get_frame_from_rtsp(rtsp_url,img_resolution):
 
+    print(img_resolution.split('x'),'字符串分割')
     # （ linux，windwos）  docker容器内部使用  两者兼容  当环境为linux时将传输协议改为tcp，否则转换失败 ( '-rtsp_transport', 'tcp')
     command = [
         'ffmpeg',
@@ -516,13 +517,12 @@ def get_frame_from_rtsp(rtsp_url):
         '-probesize', '150M',
         # 指定输入文件（RTSP 流）的 URL。
         '-i', rtsp_url,
-        # '-vf', 'fps=1,scale=1920:1080',  # 设置帧率和图像大小
-        '-vf', 'fps=1,scale=1920:1080',  # 设置帧率和图像大小
+        '-vf', 'fps=1,scale={}:{}'.format(img_resolution.split("x")[0],img_resolution.split("x")[1]),  # 设置帧率和图像大小
         # 指定输出格式为图像流。在这里，将输出格式设置为图像流，以便后续通过管道读取。
         '-f', 'image2pipe',
-        # 设置像素格式为 BGR24。在这里，将像素格式设置为 24 位 BGR 格式，即每个像素占据 3 字节。
+        #         # 设置像素格式为 BGR24。在这里，将像素格式设置为 24 位 BGR 格式，即每个像素占据 3 字节。
         '-pix_fmt', 'bgr24',
-        # 设置视频编解码器为原始视频。 如果设置为264需要额外增添参数   '-vcodec', 'libx264'
+        #         # 设置视频编解码器为原始视频。 如果设置为264需要额外增添参数   '-vcodec', 'libx264'
         '-vcodec', 'rawvideo', '-'
     ]
 
@@ -530,14 +530,14 @@ def get_frame_from_rtsp(rtsp_url):
     process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     # 从 ffmpeg 进程中读取一帧数据
-    raw_frame = process.stdout.read(1920 * 1080 * 3)
+    # raw_frame = process.stdout.read(int(img_resolution.split("x")[0]) * int(img_resolution.split("x")[1]) * 3)
+    raw_frame = process.stdout.read(int(img_resolution.split("x")[0]) * int(img_resolution.split("x")[1]) * 3)
 
     if not raw_frame:
-        print('没有获取到')
         return None
 
     # 将帧数据转换为 numpy 数组
-    frame = np.frombuffer(raw_frame, dtype=np.uint8).reshape((1080, 1920, 3))
+    frame = np.frombuffer(raw_frame, dtype=np.uint8).reshape((int(img_resolution.split("x")[1]), int(img_resolution.split("x")[0]), 3))
     return frame
 
 
@@ -594,7 +594,7 @@ def rtsp_capture_process(conn, rtsp_url):
 
 
 # 获取区域图片数据
-def get_img_from_camera_net(path, equipment_id, type):
+def get_img_from_camera_net(path, equipment_id, type,img_resolution):
     r = Redis(Redis_ip, Redis_port, 'list')
     # 同步
 
@@ -605,7 +605,7 @@ def get_img_from_camera_net(path, equipment_id, type):
             # print(result, '111')
             if result == False:
                 return {'code': 400, 'msg': '无法获取到图像', 'z': path}
-            frame = get_frame_from_rtsp(path)
+            frame = get_frame_from_rtsp(path,img_resolution)
             if frame is not None:
                 # 图片名称
                 images = 'em_{}'.format(equipment_id) + '.jpg'
@@ -640,7 +640,7 @@ def get_img_from_camera_net(path, equipment_id, type):
             if result == False:
                 return {'code': 400, 'msg': '无法获取到图像', 'z': path}
             if path:
-                frame = get_frame_from_rtsp(path)
+                frame = get_frame_from_rtsp(path,img_resolution)
                 if frame is not None:
                     # 图片名称
                     images = 'em_{}'.format(equipment_id) + '.jpg'
