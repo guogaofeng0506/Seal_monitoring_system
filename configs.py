@@ -519,9 +519,9 @@ def get_frame_from_rtsp(rtsp_url,img_resolution):
         '-i', rtsp_url,
         '-vf', 'fps=1,scale={}:{}'.format(img_resolution.split("x")[0],img_resolution.split("x")[1]),  # 设置帧率和图像大小
         # 指定输出格式为图像流。在这里，将输出格式设置为图像流，以便后续通过管道读取。
-        #         '-f', 'image2pipe',
+        '-f', 'image2pipe',
         #         # 设置像素格式为 BGR24。在这里，将像素格式设置为 24 位 BGR 格式，即每个像素占据 3 字节。
-        #         '-pix_fmt', 'bgr24',
+        '-pix_fmt', 'bgr24',
         #         # 设置视频编解码器为原始视频。 如果设置为264需要额外增添参数   '-vcodec', 'libx264'
         '-vcodec', 'rawvideo', '-'
     ]
