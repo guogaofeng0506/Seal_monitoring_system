@@ -761,5 +761,5 @@ def VCR_data_info(username,password,ip,port):
         return []
 
 
-# print(VCR_data_info('admin','1qaz2wsx!@QW','192.168.7.38',80))
+print(VCR_data_info('admin','1qaz2wsx!@QW','192.168.7.38',80))
 
