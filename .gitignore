@@ -1,1 +1,4 @@
 /static/
+/.idea/
+/__pycache__/
+/migrations/
