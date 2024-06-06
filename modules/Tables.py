@@ -93,6 +93,7 @@ class VCR_data(db.Model):
     vcr_way = db.Column(db.Enum('私有SDK', 'Onvif','GB28181'),comment='接入方式')
     vcr_name = db.Column(db.String(50), comment='录像机名称')
     vcr_ip = db.Column(db.String(50), comment='录像机ip')
+    vcr_username = db.Column(db.String(50), comment='录像机用户')
     vcr_password = db.Column(db.String(50), comment='录像机密码')
     vcr_port = db.Column(db.String(50), comment='录像机端口')
     vcr_status = db.Column(db.String(50), comment='录像机同步状态 1 同步完成 2 同步未完成' )

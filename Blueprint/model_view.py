@@ -541,6 +541,11 @@ def equipment_update():
     # type 当type为1查询，当type为2修改
     type_s = request.form.get('type', None)
 
+    params = [type_s, equipment_name]
+
+    if not all(params):
+        return jsonify({'code': 400, 'msg': '数据有未填写项'})
+
     if int(type_s) == 1:
 
         equipment_info = db.session.query(
@@ -1876,6 +1881,7 @@ def VCR_data_sync():
         vcr_way = vcr_way if vcr_way  in ['私有SDK','Onvif','GB28181'] else None,
         vcr_name = vcr_name,
         vcr_ip = ip,
+        vcr_username = username,
         vcr_password = password,
         vcr_port = port,
         Mine_id = Mine_id,
@@ -1929,6 +1935,74 @@ def VCR_data_sync():
     db.session.commit()
 
     return jsonify({'code':200,'msg':'录像机设备信息同步成功！'})
+
+
+# 录像机设备修改及详情接口
+@model_view.route('/VCR_data_update', methods=['GET'])
+def VCR_data_update():
+
+    # 接受类型 当为1的时候为详情  2的时候为修改
+    type_st =  request.args.get('type_st')
+
+    # 录像机id
+    id  = request.args.get('id')
+
+    # 当为1的时候为详情
+    if int(type_st) == 1:
+        # 查找录像机id对应数据
+        vcr_res  = db.session.query(VCR_data).filter(VCR_data.id == id).first()
+        # 当查询到录像机对应id
+        if vcr_res:
+            # 序列化数据
+            dict_res = convert_to_dict(vcr_res,['vcr_type','vcr_way','vcr_name','vcr_ip','vcr_username','vcr_password','vcr_port','Mine_id'])
+            return jsonify({'code': 200,'msg':'查找成功！', 'data': dict_res})
+        # 未查找到数据返回
+        else:
+            return jsonify({'code': 400,'msg':'未查找到数据！！','data': {}})
+
+    # 当为2的时候为修改
+    if int(type_st) == 2:
+
+        vcr_type = request.args.get('vcr_type')  # 厂商类型
+        vcr_way = request.args.get('vcr_way')  # 接入方式
+        vcr_name = request.args.get('vcr_name')  # 录像机名称
+        username = request.args.get('username')  # 录像机用户
+        password = request.args.get('password')  # 录像机密码
+        ip = request.args.get('ip')  # 录像机ip
+        port = request.args.get('port')  # 录像机端口
+        Mine_id = request.args.get('Mine_id')  # 矿id
+
+        vcr_type = (configs.manufacturer_type[int(vcr_type) - 1])['value'] if vcr_type else 1  # 厂商类型
+        vcr_way = (configs.vcr_way[int(vcr_way) - 1])['value'] if vcr_way else 1  # 接入方式
+
+        # 查找录像机id对应数据
+        vcr_res = db.session.query(VCR_data).filter(VCR_data.id == id).first()
+        if vcr_res:
+            # 查找id进行修改
+            update_query = (
+                update(VCR_data)
+                    .where(VCR_data.id == id)
+                    .values(
+                    vcr_type=vcr_type if vcr_type in ['海康', '大华', '索尼', '宇视', '天地伟业', '三星'] else None,
+                    vcr_way=vcr_way if vcr_way in ['私有SDK', 'Onvif', 'GB28181'] else None,
+                    vcr_name=vcr_name,
+                    vcr_ip=ip,
+                    vcr_username=username,
+                    vcr_password=password,
+                    vcr_port=port,
+                    Mine_id=Mine_id,
+                )
+            )
+
+            # 执行更新
+            db.session.execute(update_query)
+            db.session.commit()
+
+            return jsonify({'code':200,'msg':'更新完成'})
+        else:
+            return jsonify({'code':400,'msg':'更新数据不存在'})
+
+    return jsonify({'code': 400,'msg':'类型不存在'})
 
 
 
