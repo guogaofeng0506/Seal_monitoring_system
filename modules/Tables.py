@@ -96,6 +96,7 @@ class VCR_data(db.Model):
     vcr_password = db.Column(db.String(50), comment='录像机密码')
     vcr_port = db.Column(db.String(50), comment='录像机端口')
     vcr_status = db.Column(db.String(50), comment='录像机同步状态 1 同步完成 2 同步未完成' )
+    Mine_id = db.Column(db.Integer,comment='矿名称id')
     create_time = db.Column(db.DateTime, server_default=db.func.now(), comment='创建时间')
 
 
@@ -128,6 +129,7 @@ class Equipment(db.Model):
 
     Mine_id = db.Column(db.Integer,comment='矿名称id')
     VCR_data_id = db.Column(db.Integer,comment='录像机同步id，用于查找同步设备及下方子设备')
+    online = db.Column(db.Integer,comment='是否在线  1 在线  2 离线')
 
 
 
@@ -220,7 +222,6 @@ class Algorithm_result(db.Model):
     res_temperature = db.Column(db.Text,comment='测温数据   0位最大值 1位最小值 2位温度')
     xmin_xmax_ymin_ymax = db.Column(db.String(100),comment='检测结果框点坐标')
     res_confidence = db.Column(db.Text,comment='置信度结果')
-
 
 
 class Dict_data(db.Model):

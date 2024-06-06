@@ -1845,7 +1845,16 @@ def VCR_data_sync():
     port = request.form.get('port') #录像机端口
     Mine_id = request.form.get('Mine_id') # 矿id
 
-    print(username, password, ip, port)
+
+
+    vcr_type = (configs.manufacturer_type[int(vcr_type)-1])['value'] if vcr_type else 1  # 厂商类型
+    vcr_way = (configs.vcr_way[int(vcr_way)-1])['value'] if  vcr_way else 1  # 接入方式
+
+    params = [vcr_type,vcr_way,vcr_name,username,password,port,Mine_id,ip]
+
+    if not all(params):
+        return jsonify({'code': 400, 'msg': '录像机同步有未填写项！'})
+
 
     # 先查询当前录像机是否存在，
     vcr_data = db.session.query(Equipment).filter(Equipment.equipment_ip == ip).first()
@@ -1863,52 +1872,58 @@ def VCR_data_sync():
 
     # 写入录像机同步表
     VCR_data_data = VCR_data(
-        vcr_type = vcr_type,
-        var_way = vcr_way,
+        vcr_type = vcr_type if vcr_type in ['海康', '大华', '索尼', '宇视', '天地伟业', '三星'] else None,
+        vcr_way = vcr_way if vcr_way  in ['私有SDK','Onvif','GB28181'] else None,
         vcr_name = vcr_name,
         vcr_ip = ip,
         vcr_password = password,
         vcr_port = port,
+        Mine_id = Mine_id,
         # vcr_status = db.Column(db.String(50), comment='录像机同步状态 1 同步完成 2 同步未完成' )
     )
     db.session.add(VCR_data_data)
+    db.session.commit()
 
-    # 同步的时候录像机父类设备写入
-    # 添加录像机父设备
-    equipment_data = Equipment(
-        equipment_type='录像机',
-        manufacturer_type='海康',
-        equipment_name=vcr_name,
-        equipment_ip=ip,
-        equipment_uname=username,
-        equipment_password=password,
-        Mine_id=int(Mine_id) if Mine_id else None,
-    )
-    db.session.add(equipment_data)
-
-    # 获取对应子集数据的  默认通道 code 数据
-    children_list = children_list_get_code(vcr_data_info)
-    print(children_list)
-
-    for i in children_list:
-        # 添加录像机子设备
-        # 父类设备为 parent_id
-        child_equipment_data = Equipment(
-            equipment_type=equipment_data.equipment_type if equipment_data.equipment_type else None,
-            manufacturer_type=equipment_data.manufacturer_type if equipment_data.manufacturer_type else None,
-            equipment_name=i['name'] if i.get('name') else None,
-            equipment_ip=i['ip_address'] if i.get('ip_address') is not None else None,
-            equipment_uname=i.get('username') if i.get('username') else None,
-            equipment_password=equipment_data.equipment_password if equipment_data.equipment_password else None,
-            equipment_aisles=i.get('equipment_aisles') if i.get('equipment_aisles') else None,
-            equipment_codetype=equipment_data.equipment_codetype if equipment_data.equipment_codetype else None,
-            Mine_id=int(equipment_data.Mine_id) if equipment_data.Mine_id else None,
-            parent_id=int(equipment_data.id) if equipment_data.id else None,
-            code=i.get('code') if i.get('code') else None,
-            VCR_data_id = equipment_data.id,
+    # 判断私有sdk接入
+    if vcr_type == '海康' and  vcr_way == '私有SDK':
+        print('海康接入')
+        # ----------同步的时候录像机父类设备写入----------
+        # 添加录像机父设备
+        equipment_data = Equipment(
+            equipment_type='录像机',
+            manufacturer_type='海康',
+            equipment_name=vcr_name,
+            equipment_ip=ip,
+            equipment_uname=username,
+            equipment_password=password,
+            Mine_id=int(Mine_id) if Mine_id else None,
+            online=1,
         )
-        db.session.add(child_equipment_data)
+        db.session.add(equipment_data)
+        db.session.commit()
+        # 获取对应子集数据的  默认通道 code 数据
+        children_list = children_list_get_code(vcr_data_info)
 
+        for i in children_list:
+            # 添加录像机子设备
+            # 父类设备为 parent_id
+
+            child_equipment_data = Equipment(
+                equipment_type=equipment_data.equipment_type if equipment_data.equipment_type else None,
+                manufacturer_type=equipment_data.manufacturer_type if equipment_data.manufacturer_type else None,
+                equipment_name=i['name'] if i.get('name') else None,
+                equipment_ip=i['ip_address'] if i.get('ip_address') is not None else None,
+                equipment_uname=i.get('username') if i.get('username') else None,
+                equipment_password=equipment_data.equipment_password if equipment_data.equipment_password else None,
+                equipment_aisles=i.get('equipment_aisles') if i.get('equipment_aisles') else None,
+                equipment_codetype=equipment_data.equipment_codetype if equipment_data.equipment_codetype else None,
+                Mine_id=int(equipment_data.Mine_id) if equipment_data.Mine_id else None,
+                parent_id=int(equipment_data.id) if equipment_data.id else None,
+                code=i.get('code') if i.get('code') else None,
+                VCR_data_id = equipment_data.VCR_data_id,
+                online = 1 if i.get('online') == 'true' else 2,
+            )
+            db.session.add(child_equipment_data)
 
     VCR_data_data.vcr_status=1
     db.session.commit()
