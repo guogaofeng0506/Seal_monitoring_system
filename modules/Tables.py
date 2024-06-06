@@ -93,6 +93,7 @@ class VCR_data(db.Model):
     vcr_way = db.Column(db.Enum('私有SDK', 'Onvif','GB28181'),comment='接入方式')
     vcr_name = db.Column(db.String(50), comment='录像机名称')
     vcr_ip = db.Column(db.String(50), comment='录像机ip')
+    vcr_username = db.Column(db.String(50), comment='录像机用户')
     vcr_password = db.Column(db.String(50), comment='录像机密码')
     vcr_port = db.Column(db.String(50), comment='录像机端口')
     vcr_status = db.Column(db.String(50), comment='录像机同步状态 1 同步完成 2 同步未完成' )
@@ -222,7 +223,6 @@ class Algorithm_result(db.Model):
     res_temperature = db.Column(db.Text,comment='测温数据   0位最大值 1位最小值 2位温度')
     xmin_xmax_ymin_ymax = db.Column(db.String(100),comment='检测结果框点坐标')
     res_confidence = db.Column(db.Text,comment='置信度结果')
-
 
 
 class Dict_data(db.Model):
