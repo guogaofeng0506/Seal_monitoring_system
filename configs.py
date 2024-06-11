@@ -19,12 +19,12 @@ from flask_bcrypt import Bcrypt  # 密码操作
 from datetime import datetime
 
 
-DB_HOST = '192.168.14.24'  # ip
+DB_HOST = '192.168.14.93'  # ip
 DB_USER = 'root'  # 用户名
-DB_PASSWORD = '12345678'  # 密码
+DB_PASSWORD = 'abc123'  # 密码
 DB_NAME = 'seal_system'  # 数据库
 bcrypt = Bcrypt()  # 加密配置
-Redis_ip = '192.168.14.24'
+Redis_ip = '192.168.14.93'
 Redis_port = '6379'
 Redis_password = ''
 
