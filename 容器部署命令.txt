@@ -3,3 +3,5 @@ docker  run --restart=always  -d --name seal_system -p 5000:5000  seal_system
 
 # 共享网络
 docker run --restart=always -d --name seal_system -p 5000:5000 --network host seal_system
+
+docker save -o   seal_system.tar  seal_system

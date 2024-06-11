@@ -19,7 +19,6 @@ class Menu(db.Model):
     menu_permission_list = db.Column(db.String(32),comment='权限标识列表')  # 【1,2,3】  parent_id 加权限列表来给出菜单
 
 
-
 # 权限表
 class Permission(db.Model):
     """权限表"""
@@ -222,7 +221,7 @@ class Algorithm_result(db.Model):
     res_time = db.Column(db.DateTime, server_default=db.func.now(),comment='分析时间')
     res_result = db.Column(db.String(32),comment='分析结果')
     res_temperature = db.Column(db.Text,comment='测温数据   0位最大值 1位最小值 2位温度')
-    xmin_xmax_ymin_ymax = db.Column(db.String(100),comment='检测结果框点坐标')
+    xmin_xmax_ymin_ymax = db.Column(db.Text,comment='检测结果框点坐标')
     res_confidence = db.Column(db.Text,comment='置信度结果')
 
 

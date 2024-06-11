@@ -765,7 +765,7 @@ def type_select():
 
         # 使用列表推导式筛选设备类型为“录像机”的记录 取录像机的 ID
         vcr_ids = [i['id'] for i in equipment_list if i['equipment_type'] == '录像机' or i['equipment_type'] == '特殊摄像头']
-        print(vcr_ids)
+
         # 调用方法数据构造
         equipment_list = children_data(equipment_list, vcr_ids)
 
@@ -986,6 +986,7 @@ def algorithm_add():
     img_resolution = request.json.get('img_resolution', None)  # 图片分辨率
 
 
+
     # 参数构建判断是否为空
     params = [conf_name, Algorithm_library_id, Mine_id, Equipment_id,conf_area,test_type_id]
 
@@ -1017,7 +1018,6 @@ def algorithm_add():
     queue_redis.push()
 
     return jsonify({'code': 200, 'msg': '算法配置数据添加完成'})
-
 
 
 
@@ -1067,7 +1067,7 @@ def algorithm_update():
         conf_id.draw_type = draw_type
         conf_id.confidence = confidence
         conf_id.interval_time = interval_time if tem_frames else '0'
-        conf_id.conf_img_resolution = img_resolution if img_resolution else '0'
+        conf_id.conf_img_resolution = img_resolution
 
         # 提交会话以保存更改
         db.session.commit()
@@ -1751,7 +1751,7 @@ def algorithm_data():
         query_filter = and_(*filters)
     else:
         query_filter = filters[0] if filters else None
-
+    
     if query_filter is not None:
 
         # 查询全部数据
