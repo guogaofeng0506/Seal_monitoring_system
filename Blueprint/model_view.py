@@ -1926,7 +1926,7 @@ def VCR_data_sync():
                 Mine_id=int(equipment_data.Mine_id) if equipment_data.Mine_id else None,
                 parent_id=int(equipment_data.id) if equipment_data.id else None,
                 code=i.get('code') if i.get('code') else None,
-                VCR_data_id = equipment_data.VCR_data_id,
+                VCR_data_id = VCR_data_data.id,
                 online = 1 if i.get('online') == 'true' else 2,
             )
             db.session.add(child_equipment_data)
@@ -2003,6 +2003,42 @@ def VCR_data_update():
             return jsonify({'code':400,'msg':'更新数据不存在'})
 
     return jsonify({'code': 400,'msg':'类型不存在'})
+
+
+# 录像机设备展示接口 (1. 全部， 2.录像机信息及录像机下方子设备信息)
+@model_view.route('/VCR_data_show', methods=['GET'])
+def VCR_data_show():
+    # 1全部  2 查询录像机信息对应id录像机及子设备信息
+    type_st = request.args.get('type_st',None)
+    id = request.args.get('id',None)
+
+    params = [type_st]
+
+    # 当必传参数没填，返回错误
+    if not all(params):
+        return jsonify({'code': 400, 'msg': '参数状态未有！'})
+
+    if int(type_st) == 1:
+        # 查询录像机全部信息
+        res = convert_folder_to_dict_list(db.session.query(VCR_data).all(),['id','vcr_type','vcr_way','vcr_name','vcr_ip','vcr_username',
+                                               'vcr_password','vcr_port','Mine_id'])
+        return jsonify({'code':200,'msg':"查询成功",'data':res})
+    else:
+        # 查询录像机及子设备信息
+        res = convert_to_dict(db.session.query(VCR_data).filter(VCR_data.id == id).first(), ['id', 'vcr_type', 'vcr_way', 'vcr_name', 'vcr_ip', 'vcr_username',
+                                                'vcr_password', 'vcr_port', 'Mine_id'])
+
+        res_children = convert_folder_to_dict_list(db.session.query(Equipment).filter(Equipment.VCR_data_id==id).all(),['id','equipment_type','manufacturer_type',
+                                                                 'equipment_name','equipment_ip','equipment_uname',
+                                                                 'equipment_password','create_time','online'])
+
+        res['children'] = res_children
+
+        return jsonify({'code': 200, 'msg': "查询成功", 'data': res})
+
+
+
+
 
 
 
