@@ -203,7 +203,6 @@ class Algorithm_config(db.Model):
 
 
 
-
 # 算法(预警)结果表
 class Algorithm_result(db.Model):
 
