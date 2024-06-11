@@ -12,18 +12,19 @@ import multiprocessing
 import time
 import requests
 import xml.etree.ElementTree as ET
+from getDevStatus import getRunStatus
 
 from requests.auth import HTTPDigestAuth
 from flask_bcrypt import Bcrypt  # 密码操作
 from datetime import datetime
 
 
-DB_HOST = '192.168.14.93'  # ip
+DB_HOST = '192.168.14.24'  # ip
 DB_USER = 'root'  # 用户名
-DB_PASSWORD = 'abc123'  # 密码
+DB_PASSWORD = '12345678'  # 密码
 DB_NAME = 'seal_system'  # 数据库
 bcrypt = Bcrypt()  # 加密配置
-Redis_ip = '192.168.14.93'
+Redis_ip = '192.168.14.24'
 Redis_port = '6379'
 Redis_password = ''
 
@@ -763,3 +764,7 @@ def VCR_data_info(username,password,ip,port):
 
 # print(VCR_data_info('admin','1qaz2wsx!@QW','192.168.7.38',80))
 
+
+#获取监测点的运行状态
+def getDevRunStatus(device_list):
+    getRunStatus(device_list)

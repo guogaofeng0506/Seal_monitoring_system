@@ -198,6 +198,7 @@ class Algorithm_config(db.Model):
     draw_type = db.Column(db.String(20),comment='绘制状态  1矩形 2线条')
     interval_time = db.Column(db.String(20),comment='报警间隔时间',server_default='0')
     duration_time = db.Column(db.Integer, comment='持续时间')
+    conf_img_resolution = db.Column(db.String(20),comment='算法配置图片分辨率')
 
 
 

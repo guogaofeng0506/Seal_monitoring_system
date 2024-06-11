@@ -356,7 +356,15 @@ def equipment_one_info():
     return jsonify({'code':200,'msg':'查询成功','data':equipment_info})
 
 
-
+#查询设备在线状态接口
+@model_view.route('/equipment_status', methods=['GET'])
+def equipment_status():
+    # '设备名称'
+    equipmentInfo = db.session.query(Equipment.id,Equipment.equipment_ip,Equipment.online).all()
+    resultList = convert_folder_to_dict_list(equipmentInfo,['id','equipment_ip','online'])
+    getDevRunStatus(resultList)
+    print(resultList)
+    return resultList
 
 # 设备数据展示接口 （新） 录像机父子
 @model_view.route('/equipment_show', methods=['GET'])
@@ -407,8 +415,9 @@ def equipment_show():
                 Equipment.equipment_ip, Equipment.equipment_uname,
                 Equipment.equipment_password, Equipment.equipment_aisles,
                 Equipment.equipment_codetype, Equipment.user_status,
-                Equipment.create_time,Equipment.parent_id,Equipment.code,Equipment.flower_frames
+                Equipment.create_time,Equipment.parent_id,Equipment.code,Equipment.flower_frames,Equipment.online
             ).filter(query_filter).paginate(page=page, per_page=per_page, error_out=False)
+            getDevRunStatus(equipment_info)
         else:
                 equipment_info = db.session.query(
                 Equipment.id, Equipment.equipment_type,
@@ -418,6 +427,7 @@ def equipment_show():
                 Equipment.equipment_codetype, Equipment.user_status,
                 Equipment.create_time,Equipment.parent_id,Equipment.code,Equipment.flower_frames
             ).paginate(page=page, per_page=per_page, error_out=False)
+                getDevRunStatus(equipment_info)
 
 
         # 连表查询获取模型应用数据列表
@@ -435,6 +445,7 @@ def equipment_show():
             'user_status': i.user_status,
             'parent_id': i.parent_id,
             'create_time': i.create_time,
+            'online': i.online,
         } for i in equipment_info.items]
 
         # 构建返回的 JSON
@@ -479,8 +490,10 @@ def equipment_show():
                 Equipment.equipment_ip, Equipment.equipment_uname,
                 Equipment.equipment_password, Equipment.equipment_aisles,
                 Equipment.equipment_codetype, Equipment.user_status,
-                Equipment.create_time,Equipment.parent_id,Equipment.code,Equipment.flower_frames
+                Equipment.create_time,Equipment.parent_id,Equipment.code,Equipment.flower_frames,Equipment.online
             ).filter(query_filter).paginate(page=page, per_page=per_page, error_out=False)
+            #查询设备列表中每个设备的运行状态
+            getDevRunStatus(equipment_info)
         else:
                 equipment_info = db.session.query(
                 Equipment.id, Equipment.equipment_type,
@@ -490,6 +503,8 @@ def equipment_show():
                 Equipment.equipment_codetype, Equipment.user_status,
                 Equipment.create_time,Equipment.parent_id,Equipment.code,Equipment.flower_frames
             ).paginate(page=page, per_page=per_page, error_out=False)
+                # 查询设备列表中每个设备的运行状态
+                getDevRunStatus(equipment_info)
 
 
         # 连表查询获取模型应用数据列表
@@ -507,6 +522,7 @@ def equipment_show():
             'user_status': i.user_status,
             'parent_id': i.parent_id,
             'create_time': i.create_time,
+            'online': i.online,
         } for i in equipment_info.items]
 
 
@@ -978,7 +994,7 @@ def algorithm_add():
     confidence = request.json.get('confidence', None)  # 置信度阈值
     draw_type = request.json.get('draw_type', None)  # 绘制状态  1矩形 2线条
     interval_time = request.json.get('interval_time', None)  # 报警间隔时间
-
+    img_resolution = request.json.get('img_resolution',None) #图片分辨率
 
     # 参数构建判断是否为空
     params = [conf_name, Algorithm_library_id, Mine_id, Equipment_id,conf_area,test_type_id]
@@ -1001,6 +1017,7 @@ def algorithm_add():
         draw_type = draw_type,
         confidence = confidence if confidence else '0.2',
         interval_time = interval_time if interval_time else '0',
+        conf_img_resolution = img_resolution
     )
     db.session.add(config_data)
     db.session.commit()
@@ -1031,7 +1048,7 @@ def algorithm_update():
     confidence = request.form.get('confidence', None)  # 置信度阈值
     draw_type = request.form.get('draw_type', None)  # 绘制状态  1矩形 2线条
     interval_time = request.form.get('interval_time', None)  # 报警间隔时间
-
+    img_resolution = request.form.get('img_resolution', None) #算法配置的图片分辨率
 
 
 
@@ -1060,7 +1077,7 @@ def algorithm_update():
         conf_id.draw_type = draw_type
         conf_id.confidence = confidence
         conf_id.interval_time = interval_time if tem_frames else '0'
-
+        conf_id.conf_img_resolution = img_resolution if img_resolution else '0'
         # 提交会话以保存更改
         db.session.commit()
 
@@ -1105,6 +1122,7 @@ def algorithm_data_show():
             Algorithm_config.draw_type,
             Algorithm_config.confidence,
             Algorithm_config.interval_time,
+            Algorithm_config.conf_img_resolution,
         ).join(
             Algorithm_config,
             Algorithm_library.id == Algorithm_config.Algorithm_library_id
@@ -1149,7 +1167,7 @@ def algorithm_data_show():
                 'draw_type': algorithm_res.draw_type,
                 'confidence': algorithm_res.confidence,
                 'interval_time': algorithm_res.interval_time,
-
+                'img_resolution': algorithm_res.conf_img_resolution
 
                 # 'data': data,
             }
@@ -1217,7 +1235,7 @@ def algorithm_data_show():
                 Algorithm_config.draw_type,
                 Algorithm_config.confidence,
                 Algorithm_config.interval_time,
-
+                Algorithm_config.conf_img_resolution,
             ).join(
                 Algorithm_config,
                 Algorithm_library.id == Algorithm_config.Algorithm_library_id
@@ -1250,6 +1268,7 @@ def algorithm_data_show():
                 Algorithm_config.draw_type,
                 Algorithm_config.confidence,
                 Algorithm_config.interval_time,
+                Algorithm_config.conf_img_resolution,
             ).join(
                 Algorithm_config,
                 Algorithm_library.id == Algorithm_config.Algorithm_library_id
@@ -1286,7 +1305,7 @@ def algorithm_data_show():
             'draw_type': i.draw_type,
             'confidence': i.confidence,
             'interval_time': i.interval_time,
-
+            'img_resolution': i.conf_img_resolution,
         } for i in algorithm_res.items]
 
 
