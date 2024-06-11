@@ -983,6 +983,7 @@ def algorithm_add():
     confidence = request.json.get('confidence', None)  # 置信度阈值
     draw_type = request.json.get('draw_type', None)  # 绘制状态  1矩形 2线条
     interval_time = request.json.get('interval_time', None)  # 报警间隔时间
+    img_resolution = request.json.get('img_resolution', None)  # 图片分辨率
 
 
     # 参数构建判断是否为空
@@ -1006,6 +1007,7 @@ def algorithm_add():
         draw_type = draw_type,
         confidence = confidence if confidence else '0.2',
         interval_time = interval_time if interval_time else '0',
+        conf_img_resolution=img_resolution
     )
     db.session.add(config_data)
     db.session.commit()
@@ -1036,7 +1038,7 @@ def algorithm_update():
     confidence = request.form.get('confidence', None)  # 置信度阈值
     draw_type = request.form.get('draw_type', None)  # 绘制状态  1矩形 2线条
     interval_time = request.form.get('interval_time', None)  # 报警间隔时间
-
+    img_resolution = request.form.get('img_resolution', None)  # 算法配置的图片分辨率
 
 
 
@@ -1065,6 +1067,7 @@ def algorithm_update():
         conf_id.draw_type = draw_type
         conf_id.confidence = confidence
         conf_id.interval_time = interval_time if tem_frames else '0'
+        conf_id.conf_img_resolution = img_resolution if img_resolution else '0'
 
         # 提交会话以保存更改
         db.session.commit()
@@ -1110,6 +1113,7 @@ def algorithm_data_show():
             Algorithm_config.draw_type,
             Algorithm_config.confidence,
             Algorithm_config.interval_time,
+            Algorithm_config.conf_img_resolution,
         ).join(
             Algorithm_config,
             Algorithm_library.id == Algorithm_config.Algorithm_library_id
@@ -1154,6 +1158,7 @@ def algorithm_data_show():
                 'draw_type': algorithm_res.draw_type,
                 'confidence': algorithm_res.confidence,
                 'interval_time': algorithm_res.interval_time,
+                'img_resolution': algorithm_res.conf_img_resolution
 
 
                 # 'data': data,
@@ -1222,7 +1227,7 @@ def algorithm_data_show():
                 Algorithm_config.draw_type,
                 Algorithm_config.confidence,
                 Algorithm_config.interval_time,
-
+                Algorithm_config.conf_img_resolution,
             ).join(
                 Algorithm_config,
                 Algorithm_library.id == Algorithm_config.Algorithm_library_id
@@ -1255,6 +1260,7 @@ def algorithm_data_show():
                 Algorithm_config.draw_type,
                 Algorithm_config.confidence,
                 Algorithm_config.interval_time,
+                Algorithm_config.conf_img_resolution,
             ).join(
                 Algorithm_config,
                 Algorithm_library.id == Algorithm_config.Algorithm_library_id
@@ -1291,7 +1297,7 @@ def algorithm_data_show():
             'draw_type': i.draw_type,
             'confidence': i.confidence,
             'interval_time': i.interval_time,
-
+            'img_resolution': i.conf_img_resolution,
         } for i in algorithm_res.items]
 
 
@@ -1421,6 +1427,7 @@ def algorithm_result():
                 Equipment.equipment_name,
                 Algorithm_config.id.label('Algorithm_config_id'),
                 Algorithm_config.conf_name,
+                Algorithm_config.conf_img_resolution,
                 Algorithm_result.res_type,
                 Algorithm_result.res_image,
                 Algorithm_result.res_video,
@@ -1449,6 +1456,7 @@ def algorithm_result():
                 Equipment.equipment_name,
                 Algorithm_config.id.label('Algorithm_config_id'),
                 Algorithm_config.conf_name,
+                Algorithm_config.conf_img_resolution,
                 Algorithm_result.res_type,
                 Algorithm_result.res_image,
                 Algorithm_result.res_video,
@@ -1480,6 +1488,7 @@ def algorithm_result():
             Equipment.equipment_name,
             Algorithm_config.id.label('Algorithm_config_id'),
             Algorithm_config.conf_name,
+            Algorithm_config.conf_img_resolution,
             Algorithm_result.res_type,
             Algorithm_result.res_image,
             Algorithm_result.res_video,
@@ -1516,6 +1525,7 @@ def algorithm_result():
         'res_video': i.res_video,
         'res_frame_skip': i.res_frame_skip,
         'algorithm_name': i.algorithm_name,
+        'img_resolution': i.conf_img_resolution,
     } for i in algorithm_info.items]
 
 
