@@ -79,14 +79,15 @@ def equipment_create():
                     manufacturer_type=equipment_data.manufacturer_type if equipment_data.manufacturer_type  else None,
                     equipment_name=i['equipment_name'] if i.get('equipment_name') else None,
                     equipment_ip=i['equipment_ip'] if i.get('equipment_ip') is not None else None,
-                    equipment_uname=i.get('equipment_uname') if i.get('equipment_uname') else None,
-                    equipment_password=i.get('equipment_password') if i.get('equipment_password') else None,
+                    equipment_uname=equipment_data.equipment_uname if equipment_data.equipment_uname else None,
+                    equipment_password=equipment_data.equipment_password if equipment_data.equipment_password else None,
                     equipment_aisles=i.get('equipment_aisles') if i.get('equipment_aisles') else None,
                     equipment_codetype=equipment_data.equipment_codetype if equipment_data.equipment_codetype else None,
                     Mine_id=int(equipment_data.Mine_id) if equipment_data.Mine_id else None,
                     parent_id=int(equipment_data.id) if equipment_data.id else None,
                     code=i.get('code') if i.get('code') else None,
                     flower_frames=flower_frames if flower_frames else None,
+
                 )
                 db.session.add(child_equipment_data)
                 db.session.commit()
@@ -125,7 +126,7 @@ def equipment_create():
                     equipment_ip=equipment_data.equipment_ip if equipment_data.equipment_ip is not None else None,
                     equipment_uname=equipment_data.equipment_uname if equipment_data.equipment_uname else None,
                     equipment_password=equipment_data.equipment_password if equipment_data.equipment_password else None,
-                    equipment_aisles=equipment_data.equipment_aisles if equipment_data.equipment_aisles else None,
+                    equipment_aisles=i.get('equipment_aisles') if i.get('equipment_aisles') else None,
                     equipment_codetype=equipment_data.equipment_codetype if equipment_data.equipment_codetype else None,
                     Mine_id=int(equipment_data.Mine_id) if equipment_data.Mine_id else None,
                     parent_id=int(equipment_data.id) if equipment_data.id else None,

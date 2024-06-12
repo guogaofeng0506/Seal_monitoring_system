@@ -13,8 +13,8 @@ import multiprocessing
 import time
 import requests
 import xml.etree.ElementTree as ET
+import configparser
 from getDevStatus import getRunStatus
-
 from requests.auth import HTTPDigestAuth
 from flask_bcrypt import Bcrypt  # 密码操作
 from datetime import datetime
@@ -22,25 +22,38 @@ from sqlalchemy import and_,func,update
 from modules.Tables import *
 
 
-DB_HOST = '192.168.14.93'  # ip
-DB_USER = 'root'  # 用户名
-DB_PASSWORD = 'abc123'  # 密码
-DB_NAME = 'seal_system'  # 数据库
+def load_config(config_path):
+    config = configparser.ConfigParser()
+    config.read(config_path)
+    return config
+
+config_path = "config.ini"
+config = load_config(config_path)
+
+# 从配置文件中读取数据库和Redis配置
+DB_HOST = config['database']['DB_HOST']
+DB_USER = config['database']['DB_USER']
+DB_PASSWORD = config['database']['DB_PASSWORD']
+DB_NAME = config['database']['DB_NAME']
+
+Redis_ip = config['redis']['Redis_ip']
+Redis_port = config['redis']['Redis_port']
+Redis_password = config['redis']['Redis_password']
+
+Box_ip = config['box_ip']['Box_ip']
+Box_user = config['box_ip']['Box_user']
+Box_password = config['box_ip']['Box_password']
+
 bcrypt = Bcrypt()  # 加密配置
-Redis_ip = '192.168.14.93'
-Redis_port = '6379'
-Redis_password = ''
-
-
 
 # 盒子服务器上传类 （算法包上传）
 class SSH_Func(object):
     def __init__(self):
 
         self.Folder_SSH = '/var/model_algorithm_package/'  # 华为云上传文件默认地址
-        self.ssh_host = '192.168.14.105'
-        self.ssh_user = 'admin'
-        self.ssh_password = 'admin'
+        self.ssh_host = Box_ip
+        self.ssh_user = Box_user
+        self.ssh_password = Box_password
         self.ssh = paramiko.SSHClient()
 
     # ssh连接华为云服务器
@@ -495,14 +508,19 @@ class Redis(object):
 
 # 获取子集默认通道 code
 def children_list_get_code(children_list):
+
+    # 通道编码
+    equipment_aisles_value = 1
+
     current_value = 101  # 起始值，递增分配
 
     for i in range(len(children_list)):
         # 为每个子集项分配当前值
         children_list[i]['code'] = current_value
-
+        children_list[i]['equipment_aisles'] = equipment_aisles_value
         # 递增当前值
         current_value += 100
+        equipment_aisles_value+=1
 
     return children_list
 
