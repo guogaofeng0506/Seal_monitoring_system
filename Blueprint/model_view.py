@@ -14,112 +14,6 @@ from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_requir
 model_view = Blueprint('model_view', __name__)
 
 
-
-# 查询算法配置数据总条数写入队列，算法程序进行重启
-def total_count():
-    total_records = db.session.query(Algorithm_config). \
-        join(Algorithm_library, Algorithm_config.Algorithm_library_id == Algorithm_library.id). \
-        join(Mine, Algorithm_config.Mine_id == Mine.id). \
-        join(Equipment, Algorithm_config.Equipment_id == Equipment.id). \
-        join(Algorithm_test_type, Algorithm_config.Algorithm_test_type_id == Algorithm_test_type.id). \
-        filter(Algorithm_library.algorithm_status == 1). \
-        filter(Algorithm_config.status == 1). \
-        count()
-    return total_records
-
-
-# 递归查找 parent_id 直到没有 向下找
-def find_parent_id(parent_id):
-    # 使用生成器
-    def recursive_query(parent_id):
-        with_parent_id = db.session.query(
-            Equipment.id, Equipment.equipment_type,
-            Equipment.manufacturer_type, Equipment.equipment_name,
-            Equipment.equipment_ip, Equipment.equipment_uname,
-            Equipment.equipment_password, Equipment.equipment_aisles,
-            Equipment.equipment_codetype, Equipment.user_status,
-            Equipment.create_time, Equipment.parent_id,Equipment.code,Equipment.flower_frames
-        ).filter(Equipment.parent_id == parent_id).all()
-
-        for folder in with_parent_id:
-            yield folder
-            yield from recursive_query(folder.id)
-
-    return list(recursive_query(parent_id))
-
-
-# 转换函数
-def row_to_dict(row, keys):
-    return {key: value for key, value in zip(keys, row)}
-
-# 子数据
-def children_data(equipment_list,vcr_ids):
-    for i, equipment in enumerate(equipment_list):
-        # 定义子集列表，如果有数据则填入
-        # children = []
-        id = equipment['id']
-        # 在 vcr_ids 中查找匹配的 id
-        if id in vcr_ids:
-            # 使用 find_parent_id 获取与当前录像机关联的设备
-            results = find_parent_id(id)
-            # 检查是否有结果
-            if results:
-                # 获取字段名列表
-                keys = results[0]._mapping.keys()
-                # 使用 find_parent_id 获取与当前录像机关联的设备
-                children = [row_to_dict(result, keys) for result in results]
-
-                # 将 children 赋值给当前记录的 'children' 字段
-                equipment_list[i]['children'] = children
-            else:
-                equipment_list[i]['children'] = []
-    return equipment_list
-
-# 获取监控点下方详情  默认为当天
-def datainfo(equipment_id,now):
-    # 1为以前时间  2为当天时间
-    if now == 1:
-        filters = [Equipment.id == equipment_id, db.func.date(Algorithm_result.res_time) < datetime.now().date()]
-    else:
-        filters = [Equipment.id == equipment_id, db.func.date(Algorithm_result.res_time) == datetime.now().date()]
-
-    if len(filters) >= 2:
-        query_filter = and_(*filters)
-    else:
-        query_filter = filters[0] if filters else None
-
-
-    res = db.session.query(Algorithm_library.algorithm_name,Algorithm_config.conf_name,Algorithm_result.res_time,Algorithm_result.res_type,Algorithm_result.id.label('res_id')
-                           ).join(Algorithm_config, Algorithm_config.Algorithm_library_id == Algorithm_library.id
-                           ).join(Algorithm_result,Algorithm_config.id == Algorithm_result.Algorithm_config_id
-                           ).join(Mine, Mine.id == Algorithm_config.Mine_id
-                           ).join(Equipment,Equipment.id == Algorithm_config.Equipment_id).filter(query_filter).order_by(Algorithm_result.res_time.desc()).limit(50).all()
-    data = [{'algorithm_name': i.algorithm_name, 'conf_name':i.conf_name,'res_time':(i.res_time).strftime("%Y-%m-%d %H:%M:%S"),'res_type':configs.type_status[int(i.res_type)-1]['value'],'res_id':i.res_id} for i in res]
-    return data
-
-
-# 获取视频为录像机子集或者特殊摄像头的返回格式  参数为  父级id  子集通道code
-def get_children_rtsp(id,code,type):
-
-
-    parent_data = db.session.query(Equipment).filter(Equipment.id == id).first()
-
-    if parent_data:
-
-        user = parent_data.equipment_uname
-        password = parent_data.equipment_password
-        ip = parent_data.equipment_ip
-
-        if type == 1:
-
-            result = 'rtsp://{}:{}@{}:554/Streaming/Unicast/Channels/{}'.format(user,password,ip,code)
-        else:
-            result = 'rtsp://{}:{}@{}:554/Streaming/Channels/{}'.format(user, password, ip, code)
-    else:
-        result = None
-    return result
-
-
 # 设备添加接口
 @model_view.route('/equipment_create', methods=['POST'])
 def equipment_create():
@@ -261,82 +155,6 @@ def equipment_create():
     return jsonify({'code': 200, 'msg': '设备添加成功', })
 
 
-
-
-# # 设备数据展示接口
-# @model_view.route('/equipment_show', methods=['GET'])
-# def equipment_show():
-#     # '设备名称'
-#     equipment_name = request.args.get('equipment_name', None)
-#     # '设备类型' ('摄像头','录像机','特殊摄像头')
-#     equipment_type = request.args.get('equipment_type', None)
-#
-#     # 第几页
-#     page = request.args.get('page', default=1, type=int)
-#     # 每页条数
-#     per_page = request.args.get('per_page', default=15, type=int)
-#
-#     # 假设前端传递的参数为 equipment_name 和 equipment_type，可能有一个或两个
-#     filters = []
-#
-#     if equipment_name:
-#         filters.append(Equipment.equipment_name == equipment_name)
-#
-#     if equipment_type:
-#         filters.append(Equipment.equipment_type == equipment_type)
-#
-#     # 如果有两个条件，使用 and 连接；如果只有一个条件，不使用 and
-#
-#     if len(filters) >= 2:
-#         query_filter = and_(*filters)
-#     else:
-#         query_filter = filters[0] if filters else None
-#
-#     if query_filter is not None:
-#         equipment_info = db.session.query(
-#             Equipment.id, Equipment.equipment_type,
-#             Equipment.manufacturer_type, Equipment.equipment_name,
-#             Equipment.equipment_ip, Equipment.equipment_uname,
-#             Equipment.equipment_password, Equipment.equipment_aisles,
-#             Equipment.equipment_codetype, Equipment.user_status,
-#             Equipment.create_time,
-#         ).filter(query_filter).paginate(page=page, per_page=per_page, error_out=False)
-#     else:
-#         equipment_info = db.session.query(
-#             Equipment.id, Equipment.equipment_type,
-#             Equipment.manufacturer_type, Equipment.equipment_name,
-#             Equipment.equipment_ip, Equipment.equipment_uname,
-#             Equipment.equipment_password, Equipment.equipment_aisles,
-#             Equipment.equipment_codetype, Equipment.user_status,
-#             Equipment.create_time,
-#         ).paginate(page=page, per_page=per_page, error_out=False)
-#
-#     # 连表查询获取模型应用数据列表
-#     equipment_list = [{
-#         'id': i.id, 'equipment_type': i.equipment_type,
-#         'manufacturer_type': i.manufacturer_type,
-#         'equipment_name': i.equipment_name,
-#         'equipment_ip': i.equipment_ip,
-#         'equipment_uname': i.equipment_uname,
-#         'equipment_password': i.equipment_password,
-#         'equipment_aisles': i.equipment_aisles,
-#         'equipment_codetype': i.equipment_codetype,
-#         'user_status': i.user_status,
-#         'create_time': i.create_time,
-#     } for i in equipment_info.items]
-#
-#     # 构建返回的 JSON
-#     response_data = {
-#         'total_items': equipment_info.total,
-#         'total_pages': equipment_info.pages,
-#         'current_page': equipment_info.page,
-#         'per_page': per_page,
-#         'data': equipment_list,
-#     }
-#
-#     return jsonify({'code': 200, 'msg': '查询成功', 'data_list': response_data})
-
-
 # 单设备数据详情展示接口
 @model_view.route('/equipment_one_info', methods=['GET'])
 def equipment_one_info():
@@ -354,7 +172,6 @@ def equipment_one_info():
     # 序列化
     equipment_info = convert_folder_to_dict_list(equipment_info,['equipment_name','equipment_type','equipment_code'])
     return jsonify({'code':200,'msg':'查询成功','data':equipment_info})
-
 
 
 
@@ -530,7 +347,6 @@ def equipment_show():
 
 
 
-
 # 设备修改接口
 @model_view.route('/equipment_update', methods=['POST'])
 def equipment_update():
@@ -679,7 +495,6 @@ def equipment_update():
         queue_redis.push()
 
         return jsonify({'code': 200, 'msg': '设备修改完成!'})
-
 
 
 
@@ -2045,7 +1860,6 @@ def VCR_data_show():
         res['children'] = res_children
 
         return jsonify({'code': 200, 'msg': "查询成功", 'data': res})
-
 
 
 

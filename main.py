@@ -11,6 +11,7 @@ from Blueprint.user_view import user_view
 from Blueprint.commands import cli  # 预置数据导入
 from Blueprint.model_view import model_view
 from Blueprint.menu_view import menu_view
+from Blueprint.model_views import model_views
 
 import time
 import threading
@@ -41,10 +42,11 @@ app.config['JSON_AS_ASCII'] = False
 
 # 在应用对象上注册蓝图
 app.register_blueprint(imageblue, url_prefix='/imageblue')
-app.register_blueprint(user_view, url_prefix='/user_view')
+app.register_blueprint(user_view, url_prefix='/user_view') # 用户蓝图
 app.register_blueprint(cli) # 预置数据蓝图
-app.register_blueprint(model_view,url_prefix='/model_view')
-app.register_blueprint(menu_view,url_prefix='/menu_view')
+app.register_blueprint(model_view,url_prefix='/model_view') # 数据操作蓝图
+app.register_blueprint(menu_view,url_prefix='/menu_view')  # 菜单蓝图
+app.register_blueprint(model_views,url_prefix='/model_views') # 新增数据操作蓝图1
 
 # 连接数据库
 app.config.from_object(Config)
