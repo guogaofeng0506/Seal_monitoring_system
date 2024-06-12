@@ -800,6 +800,7 @@ def algorithm_add():
     draw_type = request.json.get('draw_type', None)  # 绘制状态  1矩形 2线条
     interval_time = request.json.get('interval_time', None)  # 报警间隔时间
     img_resolution = request.json.get('img_resolution', None)  # 图片分辨率
+    duration_time = request.json.get('duration_time', None)  # 持续时间
 
 
 
@@ -824,7 +825,8 @@ def algorithm_add():
         draw_type = draw_type,
         confidence = confidence if confidence else '0.2',
         interval_time = interval_time if interval_time else '0',
-        conf_img_resolution=img_resolution
+        conf_img_resolution=img_resolution,
+        duration_time=duration_time if duration_time else 0,
     )
     db.session.add(config_data)
     db.session.commit()
@@ -855,6 +857,7 @@ def algorithm_update():
     draw_type = request.form.get('draw_type', None)  # 绘制状态  1矩形 2线条
     interval_time = request.form.get('interval_time', None)  # 报警间隔时间
     img_resolution = request.form.get('img_resolution', None)  # 算法配置的图片分辨率
+    duration_time = request.form.get('duration_time', None)  # 持续时间
 
 
 
@@ -884,6 +887,7 @@ def algorithm_update():
         conf_id.confidence = confidence
         conf_id.interval_time = interval_time if tem_frames else '0'
         conf_id.conf_img_resolution = img_resolution
+        conf_id.duration_time = duration_time if duration_time else 0
 
         # 提交会话以保存更改
         db.session.commit()
@@ -930,6 +934,7 @@ def algorithm_data_show():
             Algorithm_config.confidence,
             Algorithm_config.interval_time,
             Algorithm_config.conf_img_resolution,
+            Algorithm_config.duration_time,
         ).join(
             Algorithm_config,
             Algorithm_library.id == Algorithm_config.Algorithm_library_id
@@ -974,7 +979,8 @@ def algorithm_data_show():
                 'draw_type': algorithm_res.draw_type,
                 'confidence': algorithm_res.confidence,
                 'interval_time': algorithm_res.interval_time,
-                'img_resolution': algorithm_res.conf_img_resolution
+                'img_resolution': algorithm_res.conf_img_resolution,
+                'duration_time': algorithm_res.duration_time,
 
 
                 # 'data': data,
@@ -1044,6 +1050,7 @@ def algorithm_data_show():
                 Algorithm_config.confidence,
                 Algorithm_config.interval_time,
                 Algorithm_config.conf_img_resolution,
+                Algorithm_config.duration_time,
             ).join(
                 Algorithm_config,
                 Algorithm_library.id == Algorithm_config.Algorithm_library_id
@@ -1077,6 +1084,7 @@ def algorithm_data_show():
                 Algorithm_config.confidence,
                 Algorithm_config.interval_time,
                 Algorithm_config.conf_img_resolution,
+                Algorithm_config.duration_time,
             ).join(
                 Algorithm_config,
                 Algorithm_library.id == Algorithm_config.Algorithm_library_id
@@ -1114,6 +1122,7 @@ def algorithm_data_show():
             'confidence': i.confidence,
             'interval_time': i.interval_time,
             'img_resolution': i.conf_img_resolution,
+            'duration_time': i.duration_time,
         } for i in algorithm_res.items]
 
 
