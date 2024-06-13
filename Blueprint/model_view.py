@@ -346,7 +346,21 @@ def equipment_show():
 
         return jsonify({'code': 200, 'msg': '查询成功', 'data_list': response_data})
 
-
+@model_view.route('/equipment_status', methods=['GET'])
+def equipment_status():
+    # '设备名称'
+    equipmentInfo = db.session.query(Equipment.id,Equipment.equipment_ip,Equipment.online).all()
+    resultList = convert_folder_to_dict_list(equipmentInfo,['id','equipment_ip','online'])
+    getDevRunStatus(resultList)
+    for resultList_i in resultList:
+        #查询当前ip对应的设备是否存在
+        equipment_result = db.session.query(Equipment).filter(Equipment.equipment_ip == resultList_i['equipment_ip'])
+        if equipment_result is not None:
+            equipment_result.online = resultList_i['online']
+            # 提交会话以保存更改
+            db.session.commit()
+    print(resultList)
+    return resultList
 
 # 设备修改接口
 @model_view.route('/equipment_update', methods=['POST'])
@@ -899,7 +913,11 @@ def algorithm_update():
     return jsonify({'code': 200, 'msg': '算法配置数据修改完成'})
 
 
-
+#算法模型运行状态接口
+@model_view.route('/algorithm_status',methods=['GET'])
+def algorithm_status():
+    euuipment_id = request.args.get('Equipment_id')
+    equipment_algorithm_list = db.session.query(Algorithm_config.Equipment_id,Algorithm_config.status,Equipment.equipment_ip,Equipment.online).join(Equipment,Algorithm_config.Equipment_id==Equipment.id)
 
 # 算法配置数据返回接口--与单一详情
 @model_view.route('/algorithm_data_show', methods=['GET'])
