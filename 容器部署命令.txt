@@ -4,4 +4,8 @@ docker  run --restart=always  -d --name seal_system -p 5000:5000  seal_system
 # 共享网络
 docker run --restart=always -d --name seal_system -p 5000:5000 --network host seal_system
 
+# 镜像打包
 docker save -o   seal_system.tar  seal_system
+
+# 配置文件映射
+docker  run --restart=always  -v /home/ygsj/Config_files/config.ini:/Seal_system/config.ini  -d --name seal_system -p 5000:5000  seal_system

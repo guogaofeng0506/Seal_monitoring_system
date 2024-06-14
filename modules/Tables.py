@@ -196,7 +196,7 @@ class Algorithm_config(db.Model):
     tem_frames = db.Column(db.String(30),comment='温度阈值')
     confidence = db.Column(db.String(30),comment='置信度阈值')
     draw_type = db.Column(db.String(20),comment='绘制状态  1矩形 2线条')
-    interval_time = db.Column(db.String(20),comment='报警间隔时间',server_default='0')
+    interval_time = db.Column(db.Integer,comment='报警间隔时间')
     duration_time = db.Column(db.Integer, comment='持续时间')
     conf_img_resolution = db.Column(db.String(20),comment='算法配置图片分辨率')
 
