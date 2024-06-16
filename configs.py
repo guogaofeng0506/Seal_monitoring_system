@@ -702,15 +702,23 @@ def total_count():
 def find_parent_id(parent_id):
     # 使用生成器
     def recursive_query(parent_id):
+        from sqlalchemy.orm import aliased
+
+        # 创建别名，用于查询父设备
+        parent_alias = aliased(Equipment)
+
         with_parent_id = db.session.query(
             Equipment.id, Equipment.equipment_type,
             Equipment.manufacturer_type, Equipment.equipment_name,
             Equipment.equipment_ip, Equipment.equipment_uname,
             Equipment.equipment_password, Equipment.equipment_aisles,
             Equipment.equipment_codetype, Equipment.user_status,
-            Equipment.create_time, Equipment.parent_id,Equipment.code,Equipment.flower_frames
+            Equipment.create_time, Equipment.parent_id,
+            Equipment.code, Equipment.flower_frames,
+            parent_alias.equipment_ip.label('parent_ip')  # 加入父设备的IP
+        ).join(
+            parent_alias, Equipment.parent_id == parent_alias.id, isouter=True
         ).filter(Equipment.parent_id == parent_id).all()
-
         for folder in with_parent_id:
             yield folder
             yield from recursive_query(folder.id)

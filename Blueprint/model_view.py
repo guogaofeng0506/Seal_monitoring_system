@@ -346,6 +346,7 @@ def equipment_show():
 
         return jsonify({'code': 200, 'msg': '查询成功', 'data_list': response_data})
 
+
 @model_view.route('/equipment_status', methods=['GET'])
 def equipment_status():
     # '设备名称'
@@ -918,6 +919,7 @@ def algorithm_update():
 def algorithm_status():
     euuipment_id = request.args.get('Equipment_id')
     equipment_algorithm_list = db.session.query(Algorithm_config.Equipment_id,Algorithm_config.status,Equipment.equipment_ip,Equipment.online).join(Equipment,Algorithm_config.Equipment_id==Equipment.id)
+
 
 # 算法配置数据返回接口--与单一详情
 @model_view.route('/algorithm_data_show', methods=['GET'])
@@ -1937,7 +1939,18 @@ def VCR_data_delete():
 def algorithm_library_delete():
 
     # 获取算法id
-    id = request.form.get('id')
+    ids = request.json.get('id',None)
+    print(ids)
+
+    # 参数构建判断是否为空
+    params = [ids]
+
+    if not all(params):
+        return jsonify({'code': 400, 'msg': '缺少删除设备id参数'})
+
+    if ids:
+        # 删除算法id
+        db.session.query(Algorithm_library).filter(Algorithm_library.id.in_(ids)).delete()
 
     # 查找算法id
     # res = db.session.query(Algorithm_library.id).filter(Algorithm_library.id == id).first()
@@ -1952,8 +1965,6 @@ def algorithm_library_delete():
     # # 根据算法配置id删除算法结果id
     # db.session.query(Algorithm_result).filter(Algorithm_result.Algorithm_config_id.in_(conf_ids)).delete()
 
-    # 删除算法id
-    db.session.query(Algorithm_library).filter(Algorithm_library.id == id).delete()
 
     db.session.commit()
 
