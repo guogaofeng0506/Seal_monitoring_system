@@ -346,6 +346,7 @@ def equipment_show():
 
         return jsonify({'code': 200, 'msg': '查询成功', 'data_list': response_data})
 
+
 @model_view.route('/equipment_status', methods=['GET'])
 def equipment_status():
     # '设备名称'
@@ -814,9 +815,9 @@ def algorithm_add():
     tem_frames = request.json.get('tem_frames', None)  # 温度阈值
     confidence = request.json.get('confidence', None)  # 置信度阈值
     draw_type = request.json.get('draw_type', None)  # 绘制状态  1矩形 2线条
-    interval_time = request.json.get('interval_time', None)  # 报警间隔时间
+    interval_time = request.json.get('interval_time', 0)  # 报警间隔时间
     img_resolution = request.json.get('img_resolution', None)  # 图片分辨率
-    duration_time = request.json.get('duration_time', None)  # 持续时间
+    duration_time = request.json.get('duration_time', 0)  # 持续时间
 
 
 
@@ -840,7 +841,7 @@ def algorithm_add():
         tem_frames = tem_frames if tem_frames else None,
         draw_type = draw_type,
         confidence = confidence if confidence else '0.2',
-        interval_time = interval_time if interval_time else '0',
+        interval_time = interval_time if interval_time else 0,
         conf_img_resolution=img_resolution,
         duration_time=duration_time if duration_time else 0,
     )
@@ -871,9 +872,9 @@ def algorithm_update():
     tem_frames = request.form.get('tem_frames', None)  # 温度阈值
     confidence = request.form.get('confidence', None)  # 置信度阈值
     draw_type = request.form.get('draw_type', None)  # 绘制状态  1矩形 2线条
-    interval_time = request.form.get('interval_time', None)  # 报警间隔时间
+    interval_time = request.form.get('interval_time', 0)  # 报警间隔时间
     img_resolution = request.form.get('img_resolution', None)  # 算法配置的图片分辨率
-    duration_time = request.form.get('duration_time', None)  # 持续时间
+    duration_time = request.form.get('duration_time', 0)  # 持续时间
 
 
 
@@ -901,7 +902,7 @@ def algorithm_update():
         conf_id.tem_frames = tem_frames if tem_frames else None
         conf_id.draw_type = draw_type
         conf_id.confidence = confidence
-        conf_id.interval_time = interval_time if tem_frames else '0'
+        conf_id.interval_time = interval_time if tem_frames else 0
         conf_id.conf_img_resolution = img_resolution
         conf_id.duration_time = duration_time if duration_time else 0
 
@@ -938,6 +939,7 @@ def algorithm_status():
     print(equipment_algorithm_dict_list)
     return equipment_algorithm_dict_list
 
+
 # 算法配置数据返回接口--与单一详情
 @model_view.route('/algorithm_data_show', methods=['GET'])
 def algorithm_data_show():
@@ -972,6 +974,7 @@ def algorithm_data_show():
             Algorithm_config.interval_time,
             Algorithm_config.conf_img_resolution,
             Algorithm_config.duration_time,
+
         ).join(
             Algorithm_config,
             Algorithm_library.id == Algorithm_config.Algorithm_library_id
@@ -1728,6 +1731,7 @@ def VCR_data_sync():
     vcr_way = (configs.vcr_way[int(vcr_way)-1])['value'] if  vcr_way else 1  # 接入方式
 
     params = [vcr_type,vcr_way,vcr_name,username,password,port,Mine_id,ip]
+    print(params)
 
     if not all(params):
         return jsonify({'code': 400, 'msg': '录像机同步有未填写项！'})
@@ -1743,7 +1747,7 @@ def VCR_data_sync():
     vcr_data_info = VCR_data_info(username,password,ip,port)
     # 当返回值为列表的时候说明参数错误，请求超时
     if vcr_data_info == []:
-        return jsonify({'code':400,'msg':'录像机设备信息参数错误,请输入正确参数！'})
+        return jsonify({'code':400,'msg':'录像机设备信息不存在,请输入正确参数！'})
 
     # 返回值有值说明正确进行同步操作,
 
@@ -1776,6 +1780,7 @@ def VCR_data_sync():
             equipment_password=password,
             Mine_id=int(Mine_id) if Mine_id else None,
             online=1,
+            VCR_data_id=VCR_data_data.id,
         )
         db.session.add(equipment_data)
         db.session.commit()
@@ -1826,7 +1831,7 @@ def VCR_data_update():
         # 当查询到录像机对应id
         if vcr_res:
             # 序列化数据
-            dict_res = convert_to_dict(vcr_res,['vcr_type','vcr_way','vcr_name','vcr_ip','vcr_username','vcr_password','vcr_port','Mine_id'])
+            dict_res = convert_to_dict(vcr_res,['id','vcr_type','vcr_way','vcr_name','vcr_ip','vcr_username','vcr_password','vcr_port','Mine_id'])
             return jsonify({'code': 200,'msg':'查找成功！', 'data': dict_res})
         # 未查找到数据返回
         else:
@@ -1846,6 +1851,7 @@ def VCR_data_update():
 
         vcr_type = (configs.manufacturer_type[int(vcr_type) - 1])['value'] if vcr_type else 1  # 厂商类型
         vcr_way = (configs.vcr_way[int(vcr_way) - 1])['value'] if vcr_way else 1  # 接入方式
+
 
         # 查找录像机id对应数据
         vcr_res = db.session.query(VCR_data).filter(VCR_data.id == id).first()
@@ -1910,8 +1916,78 @@ def VCR_data_show():
 
 
 
+# 录像机设备删除接口  （删除相关下方子设备-算法配置-算法结果）
+@model_view.route('/VCR_data_delete', methods=['POST'])
+def VCR_data_delete():
+    # 录像机id
+    id = request.form.get('id', None)
+
+    # 查找设备ids
+    em_ids = db.session.query(Equipment.id).filter(Equipment.VCR_data_id==id).all()
+    em_ids = [ i[0] for i in em_ids]
+
+    # 当设备ids存在时
+    if em_ids:
+        # 根据设备ids查找算法配置相关数据
+        algorithm_config_res = db.session.query(Algorithm_config.id).filter(Algorithm_config.Equipment_id.in_(em_ids)).all()
+        algorithm_config_res = [ i[0] for i in algorithm_config_res]
+
+        # 当查找到算法配置ids时  进行算法配置删除操作
+        if algorithm_config_res:
+
+            # 删除算法配置id
+            db.session.query(Algorithm_config).filter(Algorithm_config.id.in_(algorithm_config_res)).delete()
+
+            # 根据算法配置id删除算法结果id
+            db.session.query(Algorithm_result).filter(Algorithm_result.Algorithm_config_id.in_(algorithm_config_res)).delete()
 
 
+    # 删除录像机数据
+    db.session.query(VCR_data).filter(VCR_data.id==id).delete()
+
+    # 删除设备数据
+    db.session.query(Equipment).filter(Equipment.id.in_(em_ids)).delete()
+
+    db.session.commit()
+
+    return jsonify({'code':200,'msg':'删除成功'})
+
+
+# 算法仓数据删除接口
+@model_view.route('/algorithm_library_delete', methods=['POST'])
+def algorithm_library_delete():
+
+    # 获取算法id
+    ids = request.json.get('id',None)
+    print(ids)
+
+    # 参数构建判断是否为空
+    params = [ids]
+
+    if not all(params):
+        return jsonify({'code': 400, 'msg': '缺少删除设备id参数'})
+
+    if ids:
+        # 删除算法id
+        db.session.query(Algorithm_library).filter(Algorithm_library.id.in_(ids)).delete()
+
+    # 查找算法id
+    # res = db.session.query(Algorithm_library.id).filter(Algorithm_library.id == id).first()
+
+    # # 根据算法id查找是否有配置id，如果存在配置id进行删除， 算法结果删除
+    # conf_id = db.session.query(Algorithm_config.id).filter(Algorithm_config.Algorithm_library_id==res[0]).all()
+    # conf_ids = [ i[0] for i in conf_id]
+
+    # # 删除算法配置id
+    # db.session.query(Algorithm_config).filter(Algorithm_config.id.in_(conf_ids)).delete()
+    #
+    # # 根据算法配置id删除算法结果id
+    # db.session.query(Algorithm_result).filter(Algorithm_result.Algorithm_config_id.in_(conf_ids)).delete()
+
+
+    db.session.commit()
+
+    return jsonify({'code':200,'msg':'删除成功'})
 
 # 模型类别 select 筛选返回
 @model_view.route('/model_type', methods=['GET','POST'])
