@@ -3,6 +3,9 @@ from exts import db
 
 
 # 菜单表
+S = '图片结果矩形框  1. 绘制   2.不绘制'
+
+
 class Menu(db.Model):
     """菜单表"""
     __tablename__ = "t_menu"
@@ -199,7 +202,10 @@ class Algorithm_config(db.Model):
     interval_time = db.Column(db.Integer,comment='报警间隔时间')
     duration_time = db.Column(db.Integer, comment='持续时间')
     conf_img_resolution = db.Column(db.String(20),comment='算法配置图片分辨率')
-    algorithm_status = db.Column(db.Integer, comment='算法模型在线状态')
+    # conf_type = db.Column(db.Integer, comment='报警类型   1 预警  2一般  3 严重 4 断电 5 正常')
+    # 报警类型，数据传输，结果定义输出
+
+    image_draw_type = db.Column(db.Integer, comment=('%s' % S))
 
 
 
@@ -225,7 +231,7 @@ class Algorithm_result(db.Model):
     xmin_xmax_ymin_ymax = db.Column(db.Text,comment='检测结果框点坐标')
     res_confidence = db.Column(db.Text,comment='置信度结果')
 
-
+# 字典表
 class Dict_data(db.Model):
     """字典表"""
     __tablename__ = "t_dict_data"
@@ -238,4 +244,87 @@ class Dict_data(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True, comment='id')  # 整型的主键，会默认设置为自增主键
     dict_cname = db.Column(db.String(50), comment='中文名称')
     dict_ename = db.Column(db.String(50), comment='英文名称')
+
+
+# 定时任务表
+class ScheduledTask(db.Model):
+    """定时任务表"""
+    __tablename__ = 't_scheduled_tasks'
+    __table_args__ = {
+        'mysql_engine': 'InnoDB',
+        'comment': '定时任务表'
+    }
+
+    # 任务ID
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True, comment='任务ID')
+    # 任务名称 不能为空
+    name = db.Column(db.String(255), nullable=False, comment='任务名称')
+    # 任务执行的时间间隔（单位：秒）  不能为空
+    interval_seconds = db.Column(db.Integer, nullable=False, comment='任务执行的时间间隔（单位：秒）')
+    # 下一次任务执行的时间          可以为空
+    next_run_time = db.Column(db.DateTime, nullable=True, comment='下一次任务执行的时间')
+
+    # 时间类型  可以为空
+    # weeks (int) – 间隔几周    days (int) – 间隔几天
+    # hours (int) – 间隔几小时  minutes (int) – 间隔几分钟
+    # seconds (int) – 间隔多少秒
+    time_type = db.Column(db.String(255), nullable=False, comment='时间类型(字符串)')
+    rtsp_list = db.Column(db.Text, nullable=False, comment='rtsp流')
+    diagnosis_type_list = db.Column(db.Text, nullable=False, comment='诊断类型列表')
+    scheduled_concent = db.Column(db.Text, nullable=False, comment='备注')
+    scheduled_status = db.Column(db.Integer, nullable=False, comment='1 启用 0禁用')
+
+    # 创建
+    create_time = db.Column(db.DateTime, server_default=db.func.now(),comment='创建时间')
+
+    def __repr__(self):
+        return f'<ScheduledTask {self.name}>'
+
+
+# 诊断类型检测项表
+class Diagnosis_type(db.Model):
+    """诊断类型检测项表"""
+    __tablename__ = 't_diagnosis_type'
+    __table_args__ = {
+        'mysql_engine': 'InnoDB',
+        'comment': '诊断类型检测项表'
+    }
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True, comment='检测项ID')
+    name = db.Column(db.String(255), comment='检测项名称')
+    prewarn = db.Column(db.String(25),server_default='30',comment='预警值')
+    warn = db.Column(db.String(25),server_default='70',comment='报警值')
+    create_time = db.Column(db.DateTime, server_default=db.func.now(), comment='创建时间')
+
+
+
+# 质量诊断数据表
+class Diagnosis_data(db.Model):
+    """质量诊断数据表"""
+    __tablename__ = 't_diagnosis_data'
+    __table_args__ = {
+        'mysql_engine': 'InnoDB',
+        'comment': '质量诊断数据表'
+    }
+
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True, comment='诊断ID')
+    equipment_id = db.Column(db.Integer, comment='设备id')
+    diagnosis_type = db.Column(db.String(20), comment='诊断状态 1. 达标 2. 一般 3. 很差 4. 失败')
+    db101 = db.Column(db.String(10), comment='视频抖动')
+    db102 = db.Column(db.String(10), comment='条纹干扰')
+    db103 = db.Column(db.String(10), comment='视频丢失')
+    db104 = db.Column(db.String(10), comment='视频遮挡')
+    db105 = db.Column(db.String(10), comment='视频冻结')
+    db106 = db.Column(db.String(10), comment='高亮度')
+    db107 = db.Column(db.String(10), comment='低亮度')
+    db108 = db.Column(db.String(10), comment='视频噪声')
+    db109 = db.Column(db.String(10), comment='偏色')
+    db110 = db.Column(db.String(10), comment='清晰度')
+    db111 = db.Column(db.String(10), comment='场景变化')
+    db112 = db.Column(db.String(10), comment='对比度')
+    db113 = db.Column(db.String(10), comment='横纹干扰')
+    db114 = db.Column(db.String(10), comment='滚动条纹')
+    db115 = db.Column(db.String(10), comment='横波干扰')
+
 

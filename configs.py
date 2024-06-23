@@ -716,11 +716,42 @@ def find_parent_id(parent_id):
             Equipment.create_time, Equipment.parent_id,
             Equipment.code, Equipment.flower_frames,
             parent_alias.equipment_ip.label('parent_ip')  # 加入父设备的IP
+
         ).join(
             parent_alias, Equipment.parent_id == parent_alias.id, isouter=True
         ).filter(Equipment.parent_id == parent_id).all()
+
         for folder in with_parent_id:
-            yield folder
+            # 根据设备类型生成 rtsp 字段
+            if folder.equipment_type == '摄像头':
+                rtsp = f'rtsp://{folder.equipment_uname}:{folder.equipment_password}@{folder.equipment_ip}'
+            elif folder.equipment_type == '特殊摄像头':
+                rtsp = get_children_rtsp(folder.parent_id, folder.code, 2)
+            else:
+                rtsp = get_children_rtsp(folder.parent_id, folder.code, 1)
+
+            # 添加 rtsp 到结果
+            result = {
+                'id': folder.id,
+                'equipment_type': folder.equipment_type,
+                'manufacturer_type': folder.manufacturer_type,
+                'equipment_name': folder.equipment_name,
+                'equipment_ip': folder.equipment_ip,
+                'equipment_uname': folder.equipment_uname,
+                'equipment_password': folder.equipment_password,
+                'equipment_aisles': folder.equipment_aisles,
+                'equipment_codetype': folder.equipment_codetype,
+                'user_status': folder.user_status,
+                'create_time': folder.create_time,
+                'parent_id': folder.parent_id,
+                'code': folder.code,
+                'flower_frames': folder.flower_frames,
+                'parent_ip': folder.parent_ip,
+                'rtsp': rtsp
+            }
+
+            yield result
+            # 递归查找子设备
             yield from recursive_query(folder.id)
 
     return list(recursive_query(parent_id))
@@ -742,13 +773,13 @@ def children_data(equipment_list,vcr_ids):
             results = find_parent_id(id)
             # 检查是否有结果
             if results:
-                # 获取字段名列表
-                keys = results[0]._mapping.keys()
+                # 获取字段名列表 sqlalemy专属
+                # keys = results[0]._mapping.keys()
                 # 使用 find_parent_id 获取与当前录像机关联的设备
-                children = [row_to_dict(result, keys) for result in results]
+                # children = [row_to_dict(result, keys) for result in results]
 
                 # 将 children 赋值给当前记录的 'children' 字段
-                equipment_list[i]['children'] = children
+                equipment_list[i]['children'] = results
             else:
                 equipment_list[i]['children'] = []
     return equipment_list
