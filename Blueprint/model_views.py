@@ -11,6 +11,7 @@ model_views = Blueprint('model_views', __name__)
 
 
 # 接口
-@model_views.route('/aaa', methods=['GET'])
-def aaa():
+@model_views.route('/diagnosis_all', methods=['GET'])
+def diagnosis_all():
+
     return jsonify({'code': 200, 'message':'123'})

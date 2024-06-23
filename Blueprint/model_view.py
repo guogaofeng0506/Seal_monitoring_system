@@ -581,18 +581,25 @@ def type_select():
     # 字典数据返回
     dict_data = convert_folder_to_dict_list(db.session.query(Dict_data.id,Dict_data.dict_cname,Dict_data.dict_ename).all(),['id','dict_cname','dict_ename'])
 
-
-
+    # 质量诊断类型返回
+    diagnosis_type_result = convert_folder_to_dict_list(
+        db.session.query(Diagnosis_type.id, Diagnosis_type.name, Diagnosis_type.prewarn,Diagnosis_type.warn).all(),
+        ['id', 'name', 'prewarn','warn'])
 
     # 当选择矿类型id，展示  （矿,矿下监控点,算法）筛选数据
     if mine_id:
         mine_data = db.session.query(Mine.id, Mine.mine_name, ).all()
         mine_list = [{'id': i.id, 'mine_name': i.mine_name, } for i in mine_data]
 
-        equipment_data = db.session.query(Equipment.id, Equipment.equipment_name,Equipment.equipment_type ).filter(
+        equipment_data = db.session.query(Equipment).filter(
             Equipment.Mine_id == int(mine_id),Equipment.parent_id == None).all()
 
-        equipment_list = [{'id': i.id, 'equipment_name': i.equipment_name,'equipment_type':i.equipment_type } for i in equipment_data]
+        equipment_list = [{'id': i.id, 'equipment_name': i.equipment_name,'equipment_type':i.equipment_type,
+        'rtsp': 'rtsp://{}:{}@{}'.format(i.equipment_uname, i.equipment_password,
+                                                 i.equipment_ip) if i.equipment_type == '摄像头' else (
+            get_children_rtsp(i.parent_id, i.code, 2) if i.equipment_type == '特殊摄像头' else get_children_rtsp(i.parent_id,
+                                                                                                            i.code, 1)),
+                           } for i in equipment_data]
 
         # 使用列表推导式筛选设备类型为“录像机”的记录 取录像机的 ID
         vcr_ids = [i['id'] for i in equipment_list if i['equipment_type'] == '录像机' or i['equipment_type'] == '特殊摄像头']
@@ -619,15 +626,23 @@ def type_select():
                         'vcr_way':configs.vcr_way,
                         'vcr_name': '接入方式数据返回列表',
                         'dict_data':dict_data,
-                        'dict_data_name':'字段数据列表'
+                        'dict_data_name':'字段数据列表',
+                        'diagnosis_type_result':diagnosis_type_result,
+                        'diagnosis_type_result_name':'诊断类型列表返回',
                         })
     # 当不选择的时候展示全部数据
     else:
         mine_data = db.session.query(Mine.id, Mine.mine_name, ).all()
         mine_list = [{'id': i.id, 'mine_name': i.mine_name, } for i in mine_data]
 
-        equipment_data = db.session.query(Equipment.id, Equipment.equipment_name,Equipment.equipment_type).filter(Equipment.parent_id==None).all()
-        equipment_list = [{'id': i.id, 'equipment_name': i.equipment_name,'equipment_type':i.equipment_type } for i in equipment_data]
+        equipment_data = db.session.query(Equipment).filter(Equipment.parent_id==None).all()
+        equipment_list = [{'id': i.id, 'equipment_name': i.equipment_name,'equipment_type':i.equipment_type ,
+
+        'rtsp': 'rtsp://{}:{}@{}'.format(i.equipment_uname, i.equipment_password,
+                                                 i.equipment_ip) if i.equipment_type == '摄像头' else (
+            get_children_rtsp(i.parent_id, i.code, 2) if i.equipment_type == '特殊摄像头' else get_children_rtsp(i.parent_id,
+                                                                                                            i.code, 1)),
+                           } for i in equipment_data]
 
         # 使用列表推导式筛选设备类型为“录像机”的记录 取录像机的 ID
         vcr_ids = [i['id'] for i in equipment_list if i['equipment_type'] == '录像机' or i['equipment_type'] == '特殊摄像头']
@@ -654,7 +669,9 @@ def type_select():
                         'vcr_way': configs.vcr_way,
                         'vcr_name': '接入方式数据返回列表',
                         'dict_data': dict_data,
-                        'dict_data_name': '字典数据列表'
+                        'dict_data_name': '字典数据列表',
+                        'diagnosis_type_result': diagnosis_type_result,
+                        'diagnosis_type_result_name': '诊断类型列表返回',
                         })
 
 
@@ -816,6 +833,7 @@ def algorithm_add():
     interval_time = request.json.get('interval_time', 0)  # 报警间隔时间
     img_resolution = request.json.get('img_resolution', None)  # 图片分辨率
     duration_time = request.json.get('duration_time', 0)  # 持续时间
+    image_draw_type = request.json.get('image_draw_type', 1)  # 图片结果矩形框   1. 绘制   2.不绘制
 
 
 
@@ -842,6 +860,7 @@ def algorithm_add():
         interval_time = interval_time if interval_time else 0,
         conf_img_resolution=img_resolution,
         duration_time=duration_time if duration_time else 0,
+        image_draw_type=image_draw_type if image_draw_type else 1,
     )
     db.session.add(config_data)
     db.session.commit()
@@ -873,6 +892,7 @@ def algorithm_update():
     interval_time = request.form.get('interval_time', 0)  # 报警间隔时间
     img_resolution = request.form.get('img_resolution', None)  # 算法配置的图片分辨率
     duration_time = request.form.get('duration_time', 0)  # 持续时间
+    image_draw_type = request.form.get('image_draw_type', 1)  # 图片结果矩形框   1. 绘制   2.不绘制
 
 
 
@@ -903,6 +923,7 @@ def algorithm_update():
         conf_id.interval_time = interval_time if tem_frames else 0
         conf_id.conf_img_resolution = img_resolution
         conf_id.duration_time = duration_time if duration_time else 0
+        conf_id.image_draw_type = image_draw_type if image_draw_type else 1
 
         # 提交会话以保存更改
         db.session.commit()
@@ -955,6 +976,7 @@ def algorithm_data_show():
             Algorithm_config.interval_time,
             Algorithm_config.conf_img_resolution,
             Algorithm_config.duration_time,
+            Algorithm_config.image_draw_type,
 
         ).join(
             Algorithm_config,
@@ -1002,6 +1024,7 @@ def algorithm_data_show():
                 'interval_time': algorithm_res.interval_time,
                 'img_resolution': algorithm_res.conf_img_resolution,
                 'duration_time': algorithm_res.duration_time,
+                'image_draw_type': algorithm_res.image_draw_type,
 
 
                 # 'data': data,
@@ -1072,6 +1095,7 @@ def algorithm_data_show():
                 Algorithm_config.interval_time,
                 Algorithm_config.conf_img_resolution,
                 Algorithm_config.duration_time,
+                Algorithm_config.image_draw_type,
             ).join(
                 Algorithm_config,
                 Algorithm_library.id == Algorithm_config.Algorithm_library_id
@@ -1106,6 +1130,7 @@ def algorithm_data_show():
                 Algorithm_config.interval_time,
                 Algorithm_config.conf_img_resolution,
                 Algorithm_config.duration_time,
+                Algorithm_config.image_draw_type,
             ).join(
                 Algorithm_config,
                 Algorithm_library.id == Algorithm_config.Algorithm_library_id
@@ -1144,6 +1169,7 @@ def algorithm_data_show():
             'interval_time': i.interval_time,
             'img_resolution': i.conf_img_resolution,
             'duration_time': i.duration_time,
+            'image_draw_type': i.image_draw_type,
         } for i in algorithm_res.items]
 
 
@@ -1886,11 +1912,11 @@ def VCR_data_show():
         # 查询录像机及子设备信息
         res = convert_to_dict(db.session.query(VCR_data).filter(VCR_data.id == id).first(), ['id', 'vcr_type', 'vcr_way', 'vcr_name', 'vcr_ip', 'vcr_username',
                                                 'vcr_password', 'vcr_port', 'Mine_id'])
-
+        # 序列化查找子设备信息
         res_children = convert_folder_to_dict_list(db.session.query(Equipment).filter(Equipment.VCR_data_id==id).all(),['id','equipment_type','manufacturer_type',
                                                                  'equipment_name','equipment_ip','equipment_uname',
                                                                  'equipment_password','create_time','online'])
-
+        # 将子设备信息赋值给父设备参数返回
         res['children'] = res_children
 
         return jsonify({'code': 200, 'msg': "查询成功", 'data': res})
@@ -1945,9 +1971,11 @@ def algorithm_library_delete():
     # 参数构建判断是否为空
     params = [ids]
 
+    # 如果参数未获取到
     if not all(params):
         return jsonify({'code': 400, 'msg': '缺少删除设备id参数'})
 
+    # 当存在ids
     if ids:
         # 删除算法id
         db.session.query(Algorithm_library).filter(Algorithm_library.id.in_(ids)).delete()
@@ -1965,7 +1993,7 @@ def algorithm_library_delete():
     # # 根据算法配置id删除算法结果id
     # db.session.query(Algorithm_result).filter(Algorithm_result.Algorithm_config_id.in_(conf_ids)).delete()
 
-
+    # 提交
     db.session.commit()
 
     return jsonify({'code':200,'msg':'删除成功'})

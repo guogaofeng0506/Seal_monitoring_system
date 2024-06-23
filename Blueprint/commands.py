@@ -172,3 +172,29 @@ def insert_predefined_data_command():
         db.session.commit()
         print('矿数据插入完成！')
 
+    if not Diagnosis_type.query.first():
+
+        diag_data = [
+            {'id':1,'name':'视频抖动','prewarn':30,'warn':70},
+            {'id':2,'name':'条纹干扰','prewarn':30,'warn':70},
+            {'id':3,'name':'视频丢失','prewarn':30,'warn':70},
+            {'id':4,'name':'视频遮挡','prewarn':30,'warn':70},
+            {'id':5,'name':'视频冻结','prewarn':30,'warn':70},
+            {'id':6,'name':'高亮度','prewarn':30,'warn':70},
+            {'id':7,'name':'低亮度','prewarn':30,'warn':70},
+            {'id':8,'name':'视频噪声','prewarn':30,'warn':70},
+            {'id':9,'name':'偏色','prewarn':30,'warn':70},
+            {'id':10,'name':'清晰度','prewarn':30,'warn':70},
+            {'id':11,'name':'场景变化','prewarn':30,'warn':70},
+            {'id':12,'name':'对比度','prewarn':30,'warn':70},
+            {'id':13,'name':'横纹干扰','prewarn':30,'warn':70},
+            {'id':14,'name':'滚动条纹','prewarn':30,'warn':70},
+            {'id':15,'name':'横波干扰','prewarn':30,'warn':70},
+        ]
+
+        for i in diag_data:
+            diag_res = Diagnosis_type(id=i['id'],name=i['name'],prewarn=i['prewarn'],warn=i['warn'])
+            db.session.add(diag_res)
+        db.session.commit()
+        print('诊断类型检测项表！')
+
