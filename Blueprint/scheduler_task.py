@@ -364,7 +364,7 @@ def show_task():
         'name': i.name,
         'interval_seconds': i.interval_seconds,
         'next_run_time': i.next_run_time,
-        'create_time': i.create_time,
+        'create_time': (i.create_time).strftime("%Y-%m-%d %H:%M:%S"),
         'time_type': i.time_type,
         'rtsp_list': i.rtsp_list,
         'diagnosis_type_list': i.diagnosis_type_list,
@@ -398,7 +398,7 @@ def task_detail():
         'name': data.name,
         'interval_seconds': data.interval_seconds,
         'next_run_time': data.next_run_time,
-        'create_time': data.create_time,
+        'create_time': (data.create_time).strftime("%Y-%m-%d %H:%M:%S"),
         'time_type': data.time_type,
         'rtsp_list': data.rtsp_list,
         'diagnosis_type_list': data.diagnosis_type_list,
@@ -406,7 +406,6 @@ def task_detail():
         'scheduled_status': status[int(data.scheduled_status) - 1]['value'],
 
     }
-
 
     return jsonify({'code':200,'msg':'修改成功','data':res_data})
 
