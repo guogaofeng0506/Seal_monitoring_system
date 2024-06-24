@@ -326,5 +326,4 @@ class Diagnosis_data(db.Model):
     db113 = db.Column(db.String(10), comment='横纹干扰')
     db114 = db.Column(db.String(10), comment='滚动条纹')
     db115 = db.Column(db.String(10), comment='横波干扰')
-
-
+    create_time = db.Column(db.DateTime, server_default=db.func.now(), comment='创建时间')

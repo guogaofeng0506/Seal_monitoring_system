@@ -1,3 +1,5 @@
+import datetime
+
 import requests
 from flask_migrate import Migrate
 from exts import db
@@ -95,6 +97,89 @@ def def1():
     return jsonify({'code': 200})
 
 
+# 录像机设备信息定时同步
+# -----先查找录像机父表是否有数据，如果有数据循环读取（录像机ip），
+# 用录像机ip去调用isapi来获取摄像头实时信息进行修改，如果不存在则进行添加操作-----
+def vcr_update_task():  # 运行的定时任务的函数
+    with app.app_context():
+        # 查找录像机信息
+        vcr_dict_list = convert_folder_to_dict_list(db.session.query(VCR_data).all(),['id','vcr_ip','vcr_username','vcr_password','vcr_port','Mine_id'])
+        # 当录像机设备存在时执行逻辑
+        if vcr_dict_list:
+            # 因为录像机ip是多个，所以要进行循环获取每一个录像机ip
+            for vcr in vcr_dict_list:
+
+                # 获取父亲的id
+                db_equipment_parent_id = db.session.query(Equipment).filter(Equipment.VCR_data_id == vcr['id'],
+                                                                       Equipment.parent_id == None).first()
+
+                # 获取外部设备信息
+                external_data_list = VCR_data_info(vcr['vcr_username'], vcr['vcr_password'], vcr['vcr_ip'],
+                                                   vcr['vcr_port'])
+
+                # 获取外部设备信息列表,用于查询数据表存在矿上不存在删除操作
+                external_data_ip_list = [ i.get('ip_address') for i in external_data_list]
+
+                # 从数据库中获取设备信息并转换为字典
+                db_equipment_list = db.session.query(Equipment).filter(Equipment.VCR_data_id == vcr['id'],
+                                                                       Equipment.parent_id != None).all()
+
+                # 如果db_equipment_list查到的数据不在external_data_list里，进行db_equipment_list数据的删除操作
+                for i in db_equipment_list:
+                    if i.equipment_ip not in external_data_ip_list:
+                        db.session.delete(i)
+                db.session.commit()
+
+
+
+                # 转换为字典
+                db_equipment_dict = {device.equipment_ip: device for device in db_equipment_list}
+
+
+                # 循环isapi信息
+                for i in external_data_list:
+                    ip_address = i['ip_address']
+                    name = i['name']
+                    id = i['id']
+                    online = 1 if i['online'] == 'true' else 0
+                    # 当isapi信息存在于数据库中进行修改
+                    if ip_address in db_equipment_dict:
+                        # 如果存在，检查并更新信息
+                        db_device = db_equipment_dict[ip_address]
+                        db_device.equipment_name = name
+                        db_device.online = online
+                        db_device.equipment_ip = ip_address
+                        db_device.equipment_aisles = id
+                        db.session.commit()
+
+                    else:
+                        # 如果不存在，添加新设备
+                        print(f"添加新设备: {i['name']}")
+                        new_device = Equipment(
+                            VCR_data_id=vcr['id'],
+                            parent_id=db_equipment_parent_id.id,
+                            equipment_aisles=id,  # 使用外部数据中的字段作为 equipment_aisles
+                            equipment_name=name,
+                            equipment_ip=ip_address,
+                            online=online,
+                            code = str(id)+'01',
+                            equipment_type='录像机',
+                            manufacturer_type='海康',
+                            equipment_uname=vcr['vcr_username'],
+                            equipment_password=vcr['vcr_password'],
+                            user_status='1',
+                            create_time=datetime.now(),
+                            Mine_id=vcr['Mine_id'],
+
+                        )
+                        db.session.add(new_device)
+                        db.session.commit()
+                print('录像机设备定时同步更新成功!')
+        else:
+                print('录像机设备不存在！')
+
+
+scheduler.add_job(func=vcr_update_task, args=[], id="vcr_update_task_1", trigger="interval", minutes=5, replace_existing=True)
 
 
 # 定时任务初始化
