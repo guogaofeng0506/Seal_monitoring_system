@@ -1913,7 +1913,7 @@ def VCR_data_show():
         res = convert_to_dict(db.session.query(VCR_data).filter(VCR_data.id == id).first(), ['id', 'vcr_type', 'vcr_way', 'vcr_name', 'vcr_ip', 'vcr_username',
                                                 'vcr_password', 'vcr_port', 'Mine_id'])
         # 序列化查找子设备信息
-        res_children = convert_folder_to_dict_list(db.session.query(Equipment).filter(Equipment.VCR_data_id==id).all(),['id','equipment_type','manufacturer_type',
+        res_children = convert_folder_to_dict_list(db.session.query(Equipment).filter(Equipment.VCR_data_id==id,Equipment.parent_id !=None).all(),['id','equipment_type','manufacturer_type',
                                                                  'equipment_name','equipment_ip','equipment_uname',
                                                                  'equipment_password','create_time','online'])
         # 将子设备信息赋值给父设备参数返回

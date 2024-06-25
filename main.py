@@ -130,11 +130,8 @@ def vcr_update_task():  # 运行的定时任务的函数
                         db.session.delete(i)
                 db.session.commit()
 
-
-
                 # 转换为字典
                 db_equipment_dict = {device.equipment_ip: device for device in db_equipment_list}
-
 
                 # 循环isapi信息
                 for i in external_data_list:
