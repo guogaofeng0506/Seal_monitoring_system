@@ -910,7 +910,6 @@ def VCR_data_info(username,password,ip,port):
         # 录像机下方状态
         url_status = 'http://{}:{}/ISAPI/ContentMgmt/InputProxy/channels/status/1'.format(ip, port)
         response_status = requests.get(url_status, auth=HTTPDigestAuth(username, password),timeout=5)
-        print(response_status)
 
         # 当请求状态为200的时候
         if response_status.status_code == 200 and response.status_code == 200:
