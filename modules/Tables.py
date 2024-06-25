@@ -133,8 +133,23 @@ class Equipment(db.Model):
     Mine_id = db.Column(db.Integer,comment='矿名称id')
     VCR_data_id = db.Column(db.Integer,comment='录像机同步id，用于查找同步设备及下方子设备')
     online = db.Column(db.Integer,comment='是否在线  1 在线  2 离线')
+    duration_time = db.Column(db.String(255), comment='设备离线持续时间')
 
-
+class Offline_info(db.Model):
+    """离线信息表"""
+    __tablename__ = "t_offline_info"
+    __table_args__ = {
+        'mysql_engine': 'InnoDB',
+        'comment': '设备离线信息表'
+    }
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True, comment='离线信息id')
+    equipment_id = db.Column(db.Integer, comment='设备id')
+    offline_keep_time = db.Column(db.String(32), server_default=None, comment='离线时间')
+    offline_start_time = db.Column(db.DateTime, server_default=db.func.now())
+    status = db.Column(db.String(32), server_default='1', comment='离线状态 1 离线 2 在线')
+    create_time = db.Column(db.DateTime,server_default=db.func.now(),comment='创建时间')
+    offline_end_time = db.Column(db.DateTime, server_default=None)
+    equipment_ip = db.Column(db.String(32), server_default=None, comment='设备ip')
 
 # 算法仓表
 class Algorithm_library(db.Model):
