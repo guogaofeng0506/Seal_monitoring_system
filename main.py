@@ -197,15 +197,15 @@ def monitorPoint_updata_task():
                     equip_item.duration_time = f"{days}天{hours}时{minutes}分{seconds}秒"
                     update_query = (
                         update(Equipment)
-                        .where(equip_item.id == offline_item['id'])
+                        .where(equip_item.id == offline_item.equipment_id)
                         .values(
                             duration_time=f"{days}天{hours}时{minutes}分{seconds}秒"
                         )
                     )
                     # 提交会话保存修改
-                db.session.execute(update_query)
-                db.session.commit()
-                print('离线时间统计定时任务更新成功!')
+                    db.session.execute(update_query)
+                    db.session.commit()
+                    print('离线时间统计定时任务更新成功!')
 
 scheduler.add_job(func=monitorPoint_updata_task, args=[], id="monitorPoint_updata_task_1", trigger="interval", minutes=5, replace_existing=True)
 
