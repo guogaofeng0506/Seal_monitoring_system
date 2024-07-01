@@ -3,9 +3,6 @@ from exts import db
 
 
 # 菜单表
-S = '图片结果矩形框  1. 绘制   2.不绘制'
-
-
 class Menu(db.Model):
     """菜单表"""
     __tablename__ = "t_menu"
@@ -128,12 +125,23 @@ class Equipment(db.Model):
     flower_frames = db.Column(db.String(255),comment='花帧阈值')
     code = db.Column(db.String(255),comment='录像机子集默认通道配置')
     parent_id = db.Column(db.Integer,comment='录像机父id')
-
-
     Mine_id = db.Column(db.Integer,comment='矿名称id')
     VCR_data_id = db.Column(db.Integer,comment='录像机同步id，用于查找同步设备及下方子设备')
     online = db.Column(db.Integer,comment='是否在线  1 在线  2 离线')
+    duration_time = db.Column(db.String(255), comment='设备离线持续时间')
 
+# 离线信息表
+class Offline_info(db.Model):
+    """离线信息表"""
+    __tablename__ = "t_offline_info"
+    __table_args__ = {
+        'mysql_engine': 'InnoDB',
+        'comment': '设备离线信息表'
+    }
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True, comment='离线信息id')
+    equipment_id = db.Column(db.Integer, comment='设备id')
+    create_time = db.Column(db.DateTime,server_default=db.func.now(),comment='创建时间')
+    equipment_ip = db.Column(db.String(32), server_default=None, comment='设备ip')
 
 
 # 算法仓表
@@ -205,7 +213,7 @@ class Algorithm_config(db.Model):
     # conf_type = db.Column(db.Integer, comment='报警类型   1 预警  2一般  3 严重 4 断电 5 正常')
     # 报警类型，数据传输，结果定义输出
 
-    image_draw_type = db.Column(db.Integer, comment=('%s' % S))
+    image_draw_type = db.Column(db.Integer, comment=('图片结果矩形框  1. 绘制   2.不绘制'))
 
 
 

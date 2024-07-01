@@ -194,6 +194,34 @@ def vcr_update_task():  # 运行的定时任务的函数
 
 scheduler.add_job(func=vcr_update_task, args=[], id="vcr_update_task_1", trigger="interval", minutes=10, replace_existing=True)
 
+#监测点离线时间统计定时任务
+def monitorPoint_updata_task():
+    with app.app_context():
+        offline_equipmentList = db.session.query(Equipment).join(Offline_info,Equipment.equipment_ip == Offline_info.equipment_ip).all()
+        offline_infoList = db.session.query(Offline_info).all()
+        for equip_item in offline_equipmentList:
+            for offline_item in offline_infoList:
+                if equip_item.equipment_ip == offline_item.equipment_ip and offline_item.offline_end_time == None:
+                    offline_durationTime = (datetime.now() - offline_item.offline_start_time).seconds
+                    days = offline_durationTime // (24 * 3600)
+                    hours = (offline_durationTime % (24 * 3600)) // 3600
+                    minutes = (offline_durationTime % 3600) // 60
+                    seconds = offline_durationTime % 60
+                    equip_item.duration_time = f"{days}天{hours}时{minutes}分{seconds}秒"
+                    update_query = (
+                        update(Equipment)
+                        .where(equip_item.id == offline_item.equipment_id)
+                        .values(
+                            duration_time=f"{days}天{hours}时{minutes}分{seconds}秒"
+                        )
+                    )
+                    # 提交会话保存修改
+                    db.session.execute(update_query)
+                    db.session.commit()
+                    print('离线时间统计定时任务更新成功!')
+
+scheduler.add_job(func=monitorPoint_updata_task, args=[], id="monitorPoint_updata_task_1", trigger="interval", minutes=5, replace_existing=True)
+
 
 
 # --------定时任务初始化--------

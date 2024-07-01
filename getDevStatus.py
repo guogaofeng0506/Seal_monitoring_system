@@ -135,7 +135,7 @@ class Pinger(object):
 
 def getRunStatus(equipment_list):
     for equipment_i in equipment_list:
-        pinger = Pinger(target_host=equipment_i.get('equipment_ip'))
+        pinger = Pinger(target_host=equipment_i['equipment_ip'])
         delay = pinger.ping_once()
         if delay == None:
             equipment_i['online'] = 2

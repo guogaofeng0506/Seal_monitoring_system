@@ -350,16 +350,18 @@ def equipment_show():
 @model_view.route('/equipment_status', methods=['GET'])
 def equipment_status():
     # '设备名称'
-    equipmentInfo = db.session.query(Equipment.id,Equipment.equipment_ip,Equipment.online).all()
-    resultList = convert_folder_to_dict_list(equipmentInfo,['id','equipment_ip','online'])
+    equipmentInfo = db.session.query(Equipment.id, Equipment.equipment_ip, Equipment.online).all()
+    resultList = convert_folder_to_dict_list(equipmentInfo, ['id', 'equipment_ip', 'online'])
     getDevRunStatus(resultList)
     for resultList_i in resultList:
-        #查询当前ip对应的设备是否存在
-        equipment_result = db.session.query(Equipment).filter(Equipment.equipment_ip == resultList_i['equipment_ip'])
+        # 查询当前ip对应的设备是否存在
+        equipment_result = db.session.query(Equipment).filter(
+            Equipment.equipment_ip == resultList_i['equipment_ip']).first()
+        print(equipment_result)
         if equipment_result is not None:
             equipment_result.online = resultList_i['online']
             # 提交会话以保存更改
-            db.session.commit()
+        db.session.commit()
     print(resultList)
     return resultList
 
@@ -964,8 +966,25 @@ def algorithm_update():
 #算法模型运行状态接口
 @model_view.route('/algorithm_status',methods=['GET'])
 def algorithm_status():
-    euuipment_id = request.args.get('Equipment_id')
-    equipment_algorithm_list = db.session.query(Algorithm_config.Equipment_id,Algorithm_config.status,Equipment.equipment_ip,Equipment.online).join(Equipment,Algorithm_config.Equipment_id==Equipment.id)
+    equipment_algorithm_list = db.session.query(Algorithm_config.Equipment_id, Algorithm_config.status,
+                                                Equipment.equipment_ip, Equipment.online,
+                                                Algorithm_config.algorithm_status, Algorithm_config.id).join(Equipment,
+                                                                                                             Algorithm_config.Equipment_id == Equipment.id).all()
+    equipment_algorithm_dict_list = convert_folder_to_dict_list(equipment_algorithm_list,
+                                                                ['Equipment_id', 'status', 'equipment_ip', 'online',
+                                                                 'algorithm_status', 'id'])
+    print(equipment_algorithm_list)
+    for dict_list_itme in equipment_algorithm_dict_list:
+        algorithmConfig = db.session.query(Algorithm_config).filter(Algorithm_config.id == dict_list_itme['id']).first()
+        if dict_list_itme['status'] == '1' and dict_list_itme['online'] == 1:
+            algorithmConfig.algorithm_status = 1
+            dict_list_itme['algorithm_status'] = 1
+        else:
+            algorithmConfig.algorithm_status = 2
+            dict_list_itme['algorithm_status'] = 2
+        db.session.commit()
+    print(equipment_algorithm_dict_list)
+    return equipment_algorithm_dict_list
 
 
 # 算法配置数据返回接口--与单一详情
