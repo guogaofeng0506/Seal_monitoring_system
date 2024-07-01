@@ -309,8 +309,45 @@ class Diagnosis_data(db.Model):
 
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True, comment='诊断ID')
-    equipment_id = db.Column(db.Integer, comment='设备id')
-    diagnosis_type = db.Column(db.String(20), comment='诊断状态 1. 达标 2. 一般 3. 很差 4. 失败')
+    equipment_id = db.Column(db.Integer, comment='监控点设备id')
+    equipment_ip = db.Column(db.String(100), comment='监控点设备ip')
+    equipment_name = db.Column(db.String(100), comment='监控点名称')
+    vcr_ip = db.Column(db.String(100), comment='录像机ip')
+    diagnosis_type = db.Column(db.String(20), comment='诊断状态  达标 一般  很差  失败')
+    db101 = db.Column(db.String(10), comment='视频抖动')
+    db102 = db.Column(db.String(10), comment='条纹干扰')
+    db103 = db.Column(db.String(10), comment='视频丢失')
+    db104 = db.Column(db.String(10), comment='视频遮挡')
+    db105 = db.Column(db.String(10), comment='视频冻结')
+    db106 = db.Column(db.String(10), comment='高亮度')
+    db107 = db.Column(db.String(10), comment='低亮度')
+    db108 = db.Column(db.String(10), comment='视频噪声')
+    db109 = db.Column(db.String(10), comment='偏色')
+    db110 = db.Column(db.String(10), comment='清晰度')
+    db111 = db.Column(db.String(10), comment='场景变化')
+    db112 = db.Column(db.String(10), comment='对比度')
+    db113 = db.Column(db.String(10), comment='横纹干扰')
+    db114 = db.Column(db.String(10), comment='滚动条纹')
+    db115 = db.Column(db.String(10), comment='横波干扰')
+    create_time = db.Column(db.DateTime, server_default=db.func.now(), comment='创建时间')
+
+
+# 质量诊断历史数据表
+class Diagnosis_data_old(db.Model):
+    """质量诊断数据表"""
+    __tablename__ = 't_diagnosis_data_old'
+    __table_args__ = {
+        'mysql_engine': 'InnoDB',
+        'comment': '质量诊断历史数据表'
+    }
+
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True, comment='诊断ID')
+    equipment_id = db.Column(db.Integer, comment='监控点设备id')
+    equipment_ip = db.Column(db.String(100), comment='监控点设备ip')
+    equipment_name = db.Column(db.String(100), comment='监控点名称')
+    vcr_ip = db.Column(db.String(100), comment='录像机ip')
+    diagnosis_type = db.Column(db.String(20), comment='诊断状态  达标 一般  很差  失败')
     db101 = db.Column(db.String(10), comment='视频抖动')
     db102 = db.Column(db.String(10), comment='条纹干扰')
     db103 = db.Column(db.String(10), comment='视频丢失')

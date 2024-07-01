@@ -16,9 +16,6 @@ def run(cap, prewarn_threshold=30, warn_threshold=70, dtime=1.0):
     # 设置SSIM阈值
     ssim_low_threshold = 0.90
     ssim_high_threshold = 0.95
-    # 设置参考帧
-    _, ref_frame = cap.read()
-    ref_frame_gray = cv2.cvtColor(ref_frame, cv2.COLOR_BGR2GRAY)    # 将参考帧转换为灰度图像
 
     # 初始化参数
     start_time = time.time()
@@ -26,35 +23,43 @@ def run(cap, prewarn_threshold=30, warn_threshold=70, dtime=1.0):
     frame_prewarn_count = 0
     frame_normal_count = 0
 
+
+
+    cn = 0
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
             break
-        # 计算当前时间
-        current_time = time.time()
-
-        # 如果已经处理超过1秒，则退出循环
-        if current_time - start_time > dtime:
-            break
-
-        # 计算SSIM值
-        frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)    # 将视频帧转换为灰度图像
-        score, _ = ssim(ref_frame_gray, frame_gray, full=True)  # 计算SSIM值，ssim值越大，图像越清晰
-
-
-        # 返回诊断结果
-        if score < ssim_low_threshold:
-            fram_warn_count += 1
-            # return "帧报警"
-        elif ssim_low_threshold < score < ssim_high_threshold:
-            frame_prewarn_count += 1
-            # return "帧预警"
+        if cn == 0:
+            _, ref_frame = cap.read()
+            ref_frame_gray = cv2.cvtColor(ref_frame, cv2.COLOR_BGR2GRAY)  # 将参考帧转换为灰度图像
         else:
-            frame_normal_count += 1
-            # return "帧正常"
+            cn += 1
+            # 计算当前时间
+            current_time = time.time()
 
-    # 释放视频捕获对象
-    cap.release()
+            # 如果已经处理超过1秒，则退出循环
+            if current_time - start_time > dtime:
+                break
+
+            # 计算SSIM值
+            frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)    # 将视频帧转换为灰度图像
+            score, _ = ssim(ref_frame_gray, frame_gray, full=True)  # 计算SSIM值，ssim值越大，图像越清晰
+
+
+            # 返回诊断结果
+            if score < ssim_low_threshold:
+                fram_warn_count += 1
+                # return "帧报警"
+            elif ssim_low_threshold < score < ssim_high_threshold:
+                frame_prewarn_count += 1
+                # return "帧预警"
+            else:
+                frame_normal_count += 1
+                # return "帧正常"
+
+        # 释放视频捕获对象
+        cap.release()
 
     # 统计诊断结果
     prewarn_thres = math.ceil(fps * prewarn_threshold / 100)

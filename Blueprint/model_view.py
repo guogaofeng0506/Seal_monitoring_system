@@ -429,7 +429,7 @@ def equipment_update():
         equipment_codetype = (configs.equipment_codetype[int(equipment_codetype) - 1])[
             'value'] if equipment_codetype else 1
 
-        print(equipment_type,manufacturer_type,equipment_codetype)
+        # print(equipment_type,manufacturer_type,equipment_codetype)
 
         # 查询user_id是否存在
         equipment_result = db.session.query(Equipment).filter(Equipment.id == id).first()
@@ -446,6 +446,32 @@ def equipment_update():
             equipment_result.equipment_codetype = equipment_codetype if equipment_codetype in ['H265', 'H264'] else None
             equipment_result.Mine_id = Mine_id
             equipment_result.flower_frames = flower_frames if flower_frames and flower_frames != '0' else None
+
+            update_query = (
+                update(VCR_data)
+                    .where(VCR_data.id == equipment_result.VCR_data_id)
+                    .values(
+                    vcr_type=manufacturer_type if manufacturer_type in ['海康', '大华', '索尼', '宇视', '天地伟业', '三星'] else None,
+                    vcr_name=equipment_name,
+                    vcr_ip=equipment_ip,
+                    vcr_username=equipment_uname,
+                    vcr_password=equipment_password,
+                    Mine_id=Mine_id,
+                )
+            )
+
+            update_query_children = (
+                update(Equipment)
+                    .where(Equipment.VCR_data_id == equipment_result.VCR_data_id,Equipment.parent_id != None)
+                    .values(
+                    manufacturer_type=manufacturer_type if manufacturer_type in ['海康', '大华', '索尼', '宇视', '天地伟业', '三星'] else None,
+                    Mine_id=Mine_id,
+                )
+            )
+
+            # 执行更新
+            db.session.execute(update_query)
+            db.session.execute(update_query_children)
 
             # 提交会话以保存更改
             db.session.commit()
@@ -1752,6 +1778,7 @@ def VCR_data_sync():
 
     # 调用方法获取录像机同步数据  数据格式为 [{},{}]
     vcr_data_info = VCR_data_info(username,password,ip,port)
+    print(username,password,ip,port,type(username),type(password),type(ip),type(port))
     # 当返回值为列表的时候说明参数错误，请求超时
     if vcr_data_info == []:
         return jsonify({'code':400,'msg':'录像机设备信息不存在,请输入正确参数！'})
@@ -1879,8 +1906,30 @@ def VCR_data_update():
                 )
             )
 
+            update_query_parent = (
+                update(Equipment)
+                    .where(Equipment.VCR_data_id == id,Equipment.parent_id == None)
+                    .values(
+                    manufacturer_type= vcr_type if vcr_type in ['海康', '大华', '索尼', '宇视', '天地伟业', '三星'] else None,
+                    equipment_name=vcr_name,
+                    Mine_id=Mine_id,
+                )
+            )
+
+            update_query_children = (
+                update(Equipment)
+                    .where(Equipment.VCR_data_id == id,Equipment.parent_id != None)
+                    .values(
+                    manufacturer_type=vcr_type if vcr_type in ['海康', '大华', '索尼', '宇视', '天地伟业', '三星'] else None,
+                    Mine_id=Mine_id,
+                )
+            )
+
+
             # 执行更新
             db.session.execute(update_query)
+            db.session.execute(update_query_parent)
+            db.session.execute(update_query_children)
             db.session.commit()
 
             return jsonify({'code':200,'msg':'更新完成'})

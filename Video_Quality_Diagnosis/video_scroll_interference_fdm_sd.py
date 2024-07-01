@@ -19,10 +19,6 @@ def run(cap, prewarn_threshold=30, warn_threshold=70, dtime=1.0):
         fps = int(cap.get(cv2.CAP_PROP_FPS))
         # print(f"视频流的帧率为: {fps} FPS")
 
-        # 获取第一帧
-        ret, prev_frame = cap.read()
-        prev_gray = cv2.cvtColor(prev_frame, cv2.COLOR_BGR2GRAY)
-
         # 初始化参数
         frame_diff_threshold = 30  # 帧差异阈值
         stability_threshold = 10  # 稳定性阈值
@@ -32,41 +28,47 @@ def run(cap, prewarn_threshold=30, warn_threshold=70, dtime=1.0):
         # 用于存储异常帧的数量
         abnormal_frames = 0
 
+        cn = 0
         while True:
             # 读取当前帧
             ret, frame = cap.read()
             if not ret:
                 break
+            if cn == 0:
+                # 获取第一帧
+                ret, prev_frame = cap.read()
+                prev_gray = cv2.cvtColor(prev_frame, cv2.COLOR_BGR2GRAY)
+            else:
+                cn += 1
+                # 计算当前时间
+                current_time = time.time()
 
-            # 计算当前时间
-            current_time = time.time()
+                # 如果已经处理超过1秒，则退出循环
+                if current_time - start_time > dtime:
+                    break
 
-            # 如果已经处理超过1秒，则退出循环
-            if current_time - start_time > dtime:
-                break
+                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                # 计算帧间差异
+                frame_diff = cv2.absdiff(prev_gray, gray)
+                _, frame_diff_binary = cv2.threshold(frame_diff, frame_diff_threshold, 255, cv2.THRESH_BINARY)
 
-            # 计算帧间差异
-            frame_diff = cv2.absdiff(prev_gray, gray)
-            _, frame_diff_binary = cv2.threshold(frame_diff, frame_diff_threshold, 255, cv2.THRESH_BINARY)
+                # 计算感兴趣区域内像素平均灰度值的稳定性
+                roi = gray[region_of_interest[1]:region_of_interest[3], region_of_interest[0]:region_of_interest[2]]
+                mean_intensity = np.mean(roi)
 
-            # 计算感兴趣区域内像素平均灰度值的稳定性
-            roi = gray[region_of_interest[1]:region_of_interest[3], region_of_interest[0]:region_of_interest[2]]
-            mean_intensity = np.mean(roi)
+                # 判断帧差异和稳定性是否超过阈值
+                if np.mean(frame_diff_binary) > frame_diff_threshold and abs(
+                        mean_intensity - prev_mean_intensity) > stability_threshold:
+                    abnormal_frames += 1
 
-            # 判断帧差异和稳定性是否超过阈值
-            if np.mean(frame_diff_binary) > frame_diff_threshold and abs(
-                    mean_intensity - prev_mean_intensity) > stability_threshold:
-                abnormal_frames += 1
+                # 更新上一帧的平均灰度值
+                prev_mean_intensity = mean_intensity
 
-            # 更新上一帧的平均灰度值
-            prev_mean_intensity = mean_intensity
+                # 更新上一帧
+                prev_gray = gray.copy()
 
-            # 更新上一帧
-            prev_gray = gray.copy()
-
-        cap.release()
+            cap.release()
 
         # 返回结果
         # print(f"abnormal_frames: {abnormal_frames}")

@@ -175,6 +175,13 @@ status = [
     {'id': '2', 'value': '停止'},
 ]
 
+# 定时任务状态
+
+vcr_status = [
+    {'id': '1', 'value': '启用'},
+    {'id': '2', 'value': '禁用'},
+]
+
 # 算法类型
 algorithm_type = [
     {'id': '1', 'value': '通用检测模型'},
@@ -285,7 +292,6 @@ def time_to_gmt_format(input_str, input_format="%Y-%m-%d %H:%M:%S", output_forma
 
     # 将 datetime 对象格式化为指定字符串格式
     output_str = input_datetime.strftime(output_format)
-    print(output_str, '111')
 
     time_obj = datetime.strptime(output_str, "%a, %d %b %Y %H:%M:%S %Z")
 
@@ -433,7 +439,6 @@ class TestQueue:
     # 返回队列数据列表
     def get_all(self):
         return self.r.lrange(self.key, 0, -1)
-
 
 
 
@@ -829,74 +834,85 @@ def get_children_rtsp(id,code,type):
     return result
 
 
-
 # 获取录像机下方设备基础信息-与状态
 def VCR_data_info(username,password,ip,port):
+    # 如果有命名空间前缀，则去掉
+    def remove_namespace(tag):
+        return tag.split('}')[-1] if '}' in tag else tag
+
+    def xml_to_dict(element):
+        result_list = []
+        for child in element:
+            result = {}
+            if child.text is not None:
+                result[remove_namespace(child.tag)] = child.text.strip()
+            if len(child) > 0:
+                result[remove_namespace(child.tag)] = xml_to_dict(child)
+            result_list.append(result)
+        return result_list
 
     # 状态xml序列化
-    def parse_xml(xml_data):
-        # 解析XML数据
-        root = ET.fromstring(xml_data)
+    def parse_xml(response_info):
+
+        # 使用 strip() 去除响应文本中的空白字符
+        root = ET.fromstring(response_info.text.strip())
+
+        # 将 XML 转换为列表套字典结构
+        xml_dict = (xml_to_dict(root))
 
         # 定义存储结果的列表
         device_status_list = []
 
-        # 遍历每个<InputProxyChannelStatus>元素
-        for channel_status in root.findall('{http://www.hikvision.com/ver20/XMLSchema}InputProxyChannelStatus'):
+        for i in xml_dict:
             channel_info = {}
 
             # 获取通道ID
-            channel_id = channel_status.find('{http://www.hikvision.com/ver20/XMLSchema}id').text
-            channel_info['id'] = channel_id
+            channel_info['id'] = i['InputProxyChannelStatus'][0]['id']
 
             # 获取IP地址
-            ip_address = channel_status.find('.//{http://www.hikvision.com/ver20/XMLSchema}ipAddress').text
-            channel_info['ip_address'] = ip_address
+            channel_info['ip_address'] = i['InputProxyChannelStatus'][1]['sourceInputPortDescriptor'][2]['ipAddress']
 
             # 获取是否在线状态
-            online_status = channel_status.find('{http://www.hikvision.com/ver20/XMLSchema}online').text
-            channel_info['online'] = online_status
+            channel_info['online'] = i['InputProxyChannelStatus'][2]['online']
 
             # 获取用户名
-            username = channel_status.find('.//{http://www.hikvision.com/ver20/XMLSchema}userName').text
-            channel_info['username'] = username
+            channel_info['username'] = i['InputProxyChannelStatus'][1]['sourceInputPortDescriptor'][5]['userName']
 
             # 获取密码强度状态
-            password_status = channel_status.find('.//{http://www.hikvision.com/ver20/XMLSchema}PasswordStatus').text
-            channel_info['password_status'] = password_status
+            channel_info['password_status'] = i['InputProxyChannelStatus'][6]['SecurityStatus'][0]['PasswordStatus']
 
             device_status_list.append(channel_info)
 
         return device_status_list
 
     # 数据xml序列化
-    def xml_data(xml):
-        # 定义存储结果的列表
+    def xml_data(response_info):
+
+        # 使用 strip() 去除响应文本中的空白字符
+        root = ET.fromstring(response_info.text.strip())
+
+        # 将 XML 转换为列表套字典结构
+        xml_dict = (xml_to_dict(root))
+
         device_status_list = []
 
-        root = ET.fromstring(xml)
-        for channel in root.findall('.//{http://www.hikvision.com/ver20/XMLSchema}InputProxyChannel'):
+        for i in xml_dict:
             channel_info = {}
 
             # 监控点ID
-            id = channel.find('{http://www.hikvision.com/ver20/XMLSchema}id').text
-            channel_info['id'] = id
+            channel_info['id'] = i['InputProxyChannel'][0]['id']
 
             # 名称
-            name = channel.find('{http://www.hikvision.com/ver20/XMLSchema}name').text
-            channel_info['name'] = name
+            channel_info['name'] = i['InputProxyChannel'][1]['name']
 
             # IP地址
-            ipAddress = channel.find('.//{http://www.hikvision.com/ver20/XMLSchema}ipAddress').text
-            channel_info['ip_address'] = ipAddress
+            channel_info['ip_address'] = i['InputProxyChannel'][2]['sourceInputPortDescriptor'][2]['ipAddress']
 
-            # 管理端口号
-            managePortNo = channel.find('.//{http://www.hikvision.com/ver20/XMLSchema}managePortNo').text
-            channel_info['managePortNo'] = managePortNo
+            # # 管理端口号
+            channel_info['managePortNo'] = i['InputProxyChannel'][2]['sourceInputPortDescriptor'][3]['managePortNo']
 
-            # 用户名
-            userName = channel.find('.//{http://www.hikvision.com/ver20/XMLSchema}userName').text
-            channel_info['username'] = userName
+            # # 用户名
+            channel_info['username'] = i['InputProxyChannel'][2]['sourceInputPortDescriptor'][5]['userName']
 
             device_status_list.append(channel_info)
         return device_status_list
@@ -913,8 +929,9 @@ def VCR_data_info(username,password,ip,port):
 
         # 当请求状态为200的时候
         if response_status.status_code == 200 and response.status_code == 200:
+
             # device_status_list1 为录像机状态数据   device_status_list2 为录像机信息数据
-            device_status_list1,device_status_list2 = parse_xml(response_status.text),xml_data(response.text)
+            device_status_list1,device_status_list2 = parse_xml(response_status),xml_data(response)
 
             # 合并数据
             merged_data = [
@@ -931,6 +948,7 @@ def VCR_data_info(username,password,ip,port):
         return []
 
 
+# print(VCR_data_info('admin','1qaz2wsx!@QW','192.168.7.38',80))
 # print(VCR_data_info('admin','1qaz2wsx!@QW','192.168.7.38',80))
 
 

@@ -9,12 +9,13 @@ import numpy as np
 # 横纹干扰检测
 def detect_horizontal_waves(cap, threshold, dtime=1.0):
     # 帧计数
-    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    frame_count = 1
     # 用于计算横向运动的光流
     prev_frame = None
     horizontal_waves_frames = 0
     start_time = time.time()
-    for _ in range(frame_count):
+
+    while True:
         ret, frame = cap.read()
         if not ret:
             break
@@ -39,9 +40,10 @@ def detect_horizontal_waves(cap, threshold, dtime=1.0):
             if np.max(flow_horizontal) > threshold:
                 horizontal_waves_frames += 1
         prev_frame = gray_frame
+        frame_count += 1
 
     cap.release()
-
+    # print(frame_count,horizontal_waves_frames)
     abnormal_ratio = (horizontal_waves_frames / frame_count) * 100
 
     return abnormal_ratio
@@ -65,6 +67,8 @@ def run(cap, prewarn_threshold=30, warn_threshold=70,dtime=1.0):
             return "预警"        # 预警
         else:
             return "正常"        # 正常
+
+
 
 if __name__ == "__main__":
     prewarn_threshold = 30
