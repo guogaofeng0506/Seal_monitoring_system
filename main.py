@@ -196,6 +196,7 @@ scheduler.add_job(func=vcr_update_task, args=[], id="vcr_update_task_1", trigger
 
 #监测点离线时间统计定时任务
 def monitorPoint_updata_task():
+    print('监测点离线时间统计定时任务')
     with app.app_context():
         offline_equipmentList = db.session.query(Equipment).join(Offline_info,Equipment.equipment_ip == Offline_info.equipment_ip).all()
         offline_infoList = db.session.query(Offline_info).all()
@@ -221,7 +222,6 @@ def monitorPoint_updata_task():
                     print('离线时间统计定时任务更新成功!')
 
 scheduler.add_job(func=monitorPoint_updata_task, args=[], id="monitorPoint_updata_task_1", trigger="interval", minutes=5, replace_existing=True)
-
 
 
 # --------定时任务初始化--------
