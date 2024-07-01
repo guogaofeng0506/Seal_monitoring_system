@@ -129,6 +129,8 @@ class Equipment(db.Model):
     VCR_data_id = db.Column(db.Integer,comment='录像机同步id，用于查找同步设备及下方子设备')
     online = db.Column(db.Integer,comment='是否在线  1 在线  2 离线')
     duration_time = db.Column(db.String(255), comment='设备离线持续时间')
+    equipment_online_time = db.Column(db.DateTime, server_default=None, comment='设备在线时间')
+    equipment_offline_time = db.Column(db.DateTime, server_default=None, comment='设备离线时间')
 
 # 离线信息表
 class Offline_info(db.Model):

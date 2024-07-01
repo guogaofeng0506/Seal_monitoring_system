@@ -350,8 +350,8 @@ def equipment_show():
 @model_view.route('/equipment_status', methods=['GET'])
 def equipment_status():
     # '设备名称'
-    equipmentInfo = db.session.query(Equipment.id, Equipment.equipment_ip, Equipment.online).all()
-    resultList = convert_folder_to_dict_list(equipmentInfo, ['id', 'equipment_ip', 'online'])
+    equipmentInfo = db.session.query(Equipment.id, Equipment.equipment_ip, Equipment.online,Equipment.equipment_offline_time).all()
+    resultList = convert_folder_to_dict_list(equipmentInfo, ['id', 'equipment_ip', 'online','equipment_offline_time'])
     getDevRunStatus(resultList)
     for resultList_i in resultList:
         # 查询当前ip对应的设备是否存在
@@ -360,6 +360,8 @@ def equipment_status():
         print(equipment_result)
         if equipment_result is not None:
             equipment_result.online = resultList_i['online']
+            if resultList_i['online'] == 2:
+                equipment_result.equipment_offline_time = datetime.now()
             # 提交会话以保存更改
         db.session.commit()
     print(resultList)

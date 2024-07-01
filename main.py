@@ -196,30 +196,65 @@ scheduler.add_job(func=vcr_update_task, args=[], id="vcr_update_task_1", trigger
 
 #监测点离线时间统计定时任务
 def monitorPoint_updata_task():
-    print('监测点离线时间统计定时任务')
     with app.app_context():
-        offline_equipmentList = db.session.query(Equipment).join(Offline_info,Equipment.equipment_ip == Offline_info.equipment_ip).all()
-        offline_infoList = db.session.query(Offline_info).all()
-        for equip_item in offline_equipmentList:
-            for offline_item in offline_infoList:
-                if equip_item.equipment_ip == offline_item.equipment_ip and offline_item.offline_end_time == None:
-                    offline_durationTime = (datetime.now() - offline_item.offline_start_time).seconds
-                    days = offline_durationTime // (24 * 3600)
-                    hours = (offline_durationTime % (24 * 3600)) // 3600
-                    minutes = (offline_durationTime % 3600) // 60
-                    seconds = offline_durationTime % 60
-                    equip_item.duration_time = f"{days}天{hours}时{minutes}分{seconds}秒"
-                    update_query = (
-                        update(Equipment)
-                        .where(equip_item.id == offline_item.equipment_id)
-                        .values(
-                            duration_time=f"{days}天{hours}时{minutes}分{seconds}秒"
+        # '设备名称'
+        equipmentInfo = db.session.query(Equipment.id, Equipment.equipment_ip, Equipment.online,
+                                         Equipment.duration_time, Equipment.equipment_online_time,
+                                         Equipment.equipment_offline_time).all()
+        # 设备状态字典
+        equipmentStatusList = convert_folder_to_dict_list(equipmentInfo,
+                                                          ['id', 'equipment_ip', 'online', 'duration_time',
+                                                           'equipment_online_time', 'equipment_offline_time'])
+        getDevRunStatus(equipmentStatusList)
+
+        for equip_item in equipmentInfo:
+            for equipStatus_item in equipmentStatusList:
+                if equip_item.id == equipStatus_item['id']:
+                    # 设备表中的状态为离线  获取的设备状态为在线
+                    if equip_item.online == 2 and equipStatus_item['online'] == 1:
+                        db.session.execute(
+                            update(Equipment)
+                            .where(Equipment.id == equip_item.id)
+                            .values(online=equipStatus_item['online'],
+                                    duration_time=None,
+                                    equipment_online_time=datetime.now(),
+                                    equipment_offline_time=None,
+                                    )
                         )
-                    )
-                    # 提交会话保存修改
-                    db.session.execute(update_query)
-                    db.session.commit()
-                    print('离线时间统计定时任务更新成功!')
+                        db.session.commit()
+                    elif equip_item.online == 1 and equipStatus_item['online'] == 2:
+                        db.session.execute(
+                            update(Equipment)
+                            .where(Equipment.id == equip_item.id)
+                            .values(
+                                online=equipStatus_item['online'],
+                                equipment_offline_time=datetime.now(),
+                                equipment_online_time=None,
+                                duration_time='0天0时0分0秒'
+                            )
+                        )
+                        db.session.commit()
+                        # 记录离线的设备信息
+                        offline_info = Offline_info(
+                            equipment_id=equip_item.id,
+                            equipment_ip=equip_item.equipment_ip
+                        )
+                        db.session.add(offline_info)
+                        db.session.commit()
+                    elif equip_item.online == 2 and equipStatus_item['online'] == 2:
+                        offline_durationTime = (datetime.now() - equip_item.equipment_offline_time).seconds
+                        days = offline_durationTime // (24 * 3600)
+                        hours = (offline_durationTime % (24 * 3600)) // 3600
+                        minutes = (offline_durationTime % 3600) // 60
+                        seconds = offline_durationTime % 60
+                        db.session.execute(
+                            update(Equipment)
+                            .where(Equipment.id == equip_item.id)
+                            .values(
+                                duration_time=f"{days}天{hours}时{minutes}分{seconds}秒"
+                            )
+                        )
+                        db.session.commit()
 
 scheduler.add_job(func=monitorPoint_updata_task, args=[], id="monitorPoint_updata_task_1", trigger="interval", minutes=5, replace_existing=True)
 
