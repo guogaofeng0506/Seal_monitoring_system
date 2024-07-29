@@ -8,34 +8,52 @@ import cv2
 import numpy as np
 import paramiko
 import stat
+
 import multiprocessing
 import time
 import requests
 import xml.etree.ElementTree as ET
-
+import configparser
+from getDevStatus import getRunStatus
 from requests.auth import HTTPDigestAuth
 from flask_bcrypt import Bcrypt  # 密码操作
 from datetime import datetime
+from sqlalchemy import and_,func,update
+from modules.Tables import *
 
 
-DB_HOST = '192.168.14.93'  # ip
-DB_USER = 'root'  # 用户名
-DB_PASSWORD = 'abc123'  # 密码
-DB_NAME = 'seal_system'  # 数据库
+def load_config(config_path):
+    config = configparser.ConfigParser()
+    config.read(config_path)
+    return config
+
+config_path = "config.ini"
+config = load_config(config_path)
+
+# 从配置文件中读取数据库和Redis配置
+DB_HOST = config['database']['DB_HOST']
+DB_USER = config['database']['DB_USER']
+DB_PASSWORD = config['database']['DB_PASSWORD']
+DB_NAME = config['database']['DB_NAME']
+
+Redis_ip = config['redis']['Redis_ip']
+Redis_port = config['redis']['Redis_port']
+Redis_password = config['redis']['Redis_password']
+
+Box_ip = config['box_ip']['Box_ip']
+Box_user = config['box_ip']['Box_user']
+Box_password = config['box_ip']['Box_password']
+
 bcrypt = Bcrypt()  # 加密配置
-Redis_ip = '192.168.14.93'
-Redis_port = '6379'
-Redis_password = ''
-
 
 # 盒子服务器上传类 （算法包上传）
 class SSH_Func(object):
     def __init__(self):
 
         self.Folder_SSH = '/var/model_algorithm_package/'  # 华为云上传文件默认地址
-        self.ssh_host = '192.168.14.105'
-        self.ssh_user = 'admin'
-        self.ssh_password = 'admin'
+        self.ssh_host = Box_ip
+        self.ssh_user = Box_user
+        self.ssh_password = Box_password
         self.ssh = paramiko.SSHClient()
 
     # ssh连接华为云服务器
@@ -144,7 +162,7 @@ FILE_SAVE_PATH = get_static_path()
 
 # 预警筛选
 type_status = [
-    {'id': '1', 'value': '预警'},
+    {'id': '1', 'value': '报警'},
     {'id': '2', 'value': '一般'},
     {'id': '3', 'value': '严重'},
     {'id': '4', 'value': '断电'},
@@ -155,6 +173,12 @@ type_status = [
 status = [
     {'id': '1', 'value': '运行'},
     {'id': '2', 'value': '停止'},
+]
+
+# 定时任务状态
+vcr_status = [
+    {'id': '1', 'value': '启用'},
+    {'id': '2', 'value': '禁用'},
 ]
 
 # 算法类型
@@ -168,7 +192,9 @@ equipment_type = [
     {'id': '1', 'value': '摄像头'},
     {'id': '2', 'value': '录像机'},
     {'id': '3', 'value': '特殊摄像头'},
+    {'id': '4', 'value': '浙江双视热成像'},
 ]
+
 
 # 厂商类型筛选
 manufacturer_type = [
@@ -178,7 +204,9 @@ manufacturer_type = [
     {'id': '4', 'value': '宇视'},
     {'id': '5', 'value': '天地伟业'},
     {'id': '6', 'value': '三星'},
+    {'id': '7', 'value': '浙江双视'},
 ]
+
 
 # 码流类型
 equipment_codetype = [
@@ -267,7 +295,6 @@ def time_to_gmt_format(input_str, input_format="%Y-%m-%d %H:%M:%S", output_forma
 
     # 将 datetime 对象格式化为指定字符串格式
     output_str = input_datetime.strftime(output_format)
-    print(output_str, '111')
 
     time_obj = datetime.strptime(output_str, "%a, %d %b %Y %H:%M:%S %Z")
 
@@ -418,7 +445,6 @@ class TestQueue:
 
 
 
-
 # redis类配置   第一个参数为ip，第二个参数端口号，第三个参数为key值
 class Redis(object):
     def __init__(self, Redis_ip, Redis_port, dada_list, decode_responses=True):
@@ -490,14 +516,19 @@ class Redis(object):
 
 # 获取子集默认通道 code
 def children_list_get_code(children_list):
+
+    # 通道编码
+    equipment_aisles_value = 1
+
     current_value = 101  # 起始值，递增分配
 
     for i in range(len(children_list)):
         # 为每个子集项分配当前值
         children_list[i]['code'] = current_value
-
+        children_list[i]['equipment_aisles'] = equipment_aisles_value
         # 递增当前值
         current_value += 100
+        equipment_aisles_value+=1
 
     return children_list
 
@@ -539,6 +570,8 @@ def get_frame_from_rtsp(rtsp_url,img_resolution):
     # 将帧数据转换为 numpy 数组
     frame = np.frombuffer(raw_frame, dtype=np.uint8).reshape((int(img_resolution.split("x")[1]), int(img_resolution.split("x")[0]), 3))
     return frame
+
+
 
 
 
@@ -659,73 +692,230 @@ def get_img_from_camera_net(path, equipment_id, type,img_resolution):
             else:
                 return {'code': 400, 'msg': '请选择录像机子集'}
 
+
+# 查询算法配置数据总条数写入队列，算法程序进行重启
+def total_count():
+    total_records = db.session.query(Algorithm_config). \
+        join(Algorithm_library, Algorithm_config.Algorithm_library_id == Algorithm_library.id). \
+        join(Mine, Algorithm_config.Mine_id == Mine.id). \
+        join(Equipment, Algorithm_config.Equipment_id == Equipment.id). \
+        join(Algorithm_test_type, Algorithm_config.Algorithm_test_type_id == Algorithm_test_type.id). \
+        filter(Algorithm_library.algorithm_status == 1). \
+        filter(Algorithm_config.status == 1). \
+        count()
+    return total_records
+
+
+# 递归查找 parent_id 直到没有 向下找
+def find_parent_id(parent_id):
+    # 使用生成器
+    def recursive_query(parent_id):
+        from sqlalchemy.orm import aliased
+
+        # 创建别名，用于查询父设备
+        parent_alias = aliased(Equipment)
+
+        with_parent_id = db.session.query(
+            Equipment.id, Equipment.equipment_type,
+            Equipment.manufacturer_type, Equipment.equipment_name,
+            Equipment.equipment_ip, Equipment.equipment_uname,
+            Equipment.equipment_password, Equipment.equipment_aisles,
+            Equipment.equipment_codetype, Equipment.user_status,
+            Equipment.create_time, Equipment.parent_id,
+            Equipment.code, Equipment.flower_frames,
+            parent_alias.equipment_ip.label('parent_ip')  # 加入父设备的IP
+
+        ).join(
+            parent_alias, Equipment.parent_id == parent_alias.id, isouter=True
+        ).filter(Equipment.parent_id == parent_id).all()
+
+        for folder in with_parent_id:
+            # 根据设备类型生成 rtsp 字段
+            if folder.equipment_type == '摄像头':
+                rtsp = f'rtsp://{folder.equipment_uname}:{folder.equipment_password}@{folder.equipment_ip}'
+            elif folder.equipment_type == '特殊摄像头':
+                rtsp = get_children_rtsp(folder.parent_id, folder.code, 2)
+            elif folder.equipment_type == '录像机':
+                rtsp = get_children_rtsp(folder.parent_id, folder.code, 1)
+            elif folder.equipment_type == '浙江双视热成像':
+                rtsp = 'rtsp://{}:{}@{}:554/live/chn0'.format(folder.equipment_uname, folder.equipment_password, folder.equipment_ip)
+
+            # 添加 rtsp 到结果
+            result = {
+                'id': folder.id,
+                'equipment_type': folder.equipment_type,
+                'manufacturer_type': folder.manufacturer_type,
+                'equipment_name': folder.equipment_name,
+                'equipment_ip': folder.equipment_ip,
+                'equipment_uname': folder.equipment_uname,
+                'equipment_password': folder.equipment_password,
+                'equipment_aisles': folder.equipment_aisles,
+                'equipment_codetype': folder.equipment_codetype,
+                'user_status': folder.user_status,
+                'create_time': folder.create_time,
+                'parent_id': folder.parent_id,
+                'code': folder.code,
+                'flower_frames': folder.flower_frames,
+                'parent_ip': folder.parent_ip,
+                'rtsp': rtsp
+            }
+
+            yield result
+            # 递归查找子设备
+            yield from recursive_query(folder.id)
+
+    return list(recursive_query(parent_id))
+
+
+# 转换函数
+def row_to_dict(row, keys):
+    return {key: value for key, value in zip(keys, row)}
+
+# 子数据
+def children_data(equipment_list,vcr_ids):
+    for i, equipment in enumerate(equipment_list):
+        # 定义子集列表，如果有数据则填入
+        # children = []
+        id = equipment['id']
+        # 在 vcr_ids 中查找匹配的 id
+        if id in vcr_ids:
+            # 使用 find_parent_id 获取与当前录像机关联的设备
+            results = find_parent_id(id)
+            # 检查是否有结果
+            if results:
+                # 获取字段名列表 sqlalemy专属
+                # keys = results[0]._mapping.keys()
+                # 使用 find_parent_id 获取与当前录像机关联的设备
+                # children = [row_to_dict(result, keys) for result in results]
+
+                # 将 children 赋值给当前记录的 'children' 字段
+                equipment_list[i]['children'] = results
+            else:
+                equipment_list[i]['children'] = []
+    return equipment_list
+
+# 获取监控点下方详情  默认为当天
+def datainfo(equipment_id,now):
+    # 1为以前时间  2为当天时间
+    if now == 1:
+        filters = [Algorithm_result.Equipment_id == equipment_id, db.func.date(Algorithm_result.res_time) < datetime.now().date()]
+    else:
+        filters = [Algorithm_result.Equipment_id == equipment_id, db.func.date(Algorithm_result.res_time) == datetime.now().date()]
+
+    if len(filters) >= 2:
+        query_filter = and_(*filters)
+    else:
+        query_filter = filters[0] if filters else None
+
+    res = db.session.query(Algorithm_library.algorithm_name,Algorithm_config.conf_name,Algorithm_result.res_time,Algorithm_result.res_type,Algorithm_result.id.label('res_id')
+                           ).join(Algorithm_config, Algorithm_config.Algorithm_library_id == Algorithm_library.id
+                           ).join(Algorithm_result,Algorithm_config.id == Algorithm_result.Algorithm_config_id
+                           ).filter(query_filter).order_by(Algorithm_result.res_time.desc()).limit(50).all()
+    data = [{'algorithm_name': i.algorithm_name, 'conf_name':i.conf_name,'res_time':(i.res_time).strftime("%Y-%m-%d %H:%M:%S"),'res_type':type_status[int(i.res_type)-1]['value'],'res_id':i.res_id} for i in res]
+    return data
+
+
+# 获取视频为录像机子集或者特殊摄像头的返回格式  参数为  父级id  子集通道code
+def get_children_rtsp(id,code,type):
+
+
+    parent_data = db.session.query(Equipment).filter(Equipment.id == id).first()
+
+    if parent_data:
+
+        user = parent_data.equipment_uname
+        password = parent_data.equipment_password
+        ip = parent_data.equipment_ip
+
+        if type == 1:
+
+            result = 'rtsp://{}:{}@{}:554/Streaming/Unicast/Channels/{}'.format(user,password,ip,code)
+        else:
+            result = 'rtsp://{}:{}@{}:554/Streaming/Channels/{}'.format(user, password, ip, code)
+    else:
+        result = None
+    return result
+
+
 # 获取录像机下方设备基础信息-与状态
 def VCR_data_info(username,password,ip,port):
+    # 如果有命名空间前缀，则去掉
+    def remove_namespace(tag):
+        return tag.split('}')[-1] if '}' in tag else tag
+
+    def xml_to_dict(element):
+        result_list = []
+        for child in element:
+            result = {}
+            if child.text is not None:
+                result[remove_namespace(child.tag)] = child.text.strip()
+            if len(child) > 0:
+                result[remove_namespace(child.tag)] = xml_to_dict(child)
+            result_list.append(result)
+        return result_list
 
     # 状态xml序列化
-    def parse_xml(xml_data):
-        # 解析XML数据
-        root = ET.fromstring(xml_data)
+    def parse_xml(response_info):
+
+        # 使用 strip() 去除响应文本中的空白字符
+        root = ET.fromstring(response_info.text.strip())
+
+        # 将 XML 转换为列表套字典结构
+        xml_dict = (xml_to_dict(root))
 
         # 定义存储结果的列表
         device_status_list = []
 
-        # 遍历每个<InputProxyChannelStatus>元素
-        for channel_status in root.findall('{http://www.hikvision.com/ver20/XMLSchema}InputProxyChannelStatus'):
+        for i in xml_dict:
             channel_info = {}
 
             # 获取通道ID
-            channel_id = channel_status.find('{http://www.hikvision.com/ver20/XMLSchema}id').text
-            channel_info['id'] = channel_id
+            channel_info['id'] = i['InputProxyChannelStatus'][0]['id']
 
             # 获取IP地址
-            ip_address = channel_status.find('.//{http://www.hikvision.com/ver20/XMLSchema}ipAddress').text
-            channel_info['ip_address'] = ip_address
+            channel_info['ip_address'] = i['InputProxyChannelStatus'][1]['sourceInputPortDescriptor'][2]['ipAddress']
 
             # 获取是否在线状态
-            online_status = channel_status.find('{http://www.hikvision.com/ver20/XMLSchema}online').text
-            channel_info['online'] = online_status
+            channel_info['online'] = i['InputProxyChannelStatus'][2]['online']
 
             # 获取用户名
-            username = channel_status.find('.//{http://www.hikvision.com/ver20/XMLSchema}userName').text
-            channel_info['username'] = username
+            channel_info['username'] = i['InputProxyChannelStatus'][1]['sourceInputPortDescriptor'][5]['userName']
 
             # 获取密码强度状态
-            password_status = channel_status.find('.//{http://www.hikvision.com/ver20/XMLSchema}PasswordStatus').text
-            channel_info['password_status'] = password_status
+            channel_info['password_status'] = i['InputProxyChannelStatus'][6]['SecurityStatus'][0]['PasswordStatus']
 
             device_status_list.append(channel_info)
 
         return device_status_list
 
     # 数据xml序列化
-    def xml_data(xml):
-        # 定义存储结果的列表
+    def xml_data(response_info):
+
+        # 使用 strip() 去除响应文本中的空白字符
+        root = ET.fromstring(response_info.text.strip())
+
+        # 将 XML 转换为列表套字典结构
+        xml_dict = (xml_to_dict(root))
+
         device_status_list = []
 
-        root = ET.fromstring(xml)
-        for channel in root.findall('.//{http://www.hikvision.com/ver20/XMLSchema}InputProxyChannel'):
+        for i in xml_dict:
             channel_info = {}
 
             # 监控点ID
-            id = channel.find('{http://www.hikvision.com/ver20/XMLSchema}id').text
-            channel_info['id'] = id
+            channel_info['id'] = i['InputProxyChannel'][0]['id']
 
             # 名称
-            name = channel.find('{http://www.hikvision.com/ver20/XMLSchema}name').text
-            channel_info['name'] = name
+            channel_info['name'] = i['InputProxyChannel'][1]['name']
 
             # IP地址
-            ipAddress = channel.find('.//{http://www.hikvision.com/ver20/XMLSchema}ipAddress').text
-            channel_info['ip_address'] = ipAddress
+            channel_info['ip_address'] = i['InputProxyChannel'][2]['sourceInputPortDescriptor'][2]['ipAddress']
 
-            # 管理端口号
-            managePortNo = channel.find('.//{http://www.hikvision.com/ver20/XMLSchema}managePortNo').text
-            channel_info['managePortNo'] = managePortNo
+            # # 管理端口号
+            channel_info['managePortNo'] = i['InputProxyChannel'][2]['sourceInputPortDescriptor'][3]['managePortNo']
 
-            # 用户名
-            userName = channel.find('.//{http://www.hikvision.com/ver20/XMLSchema}userName').text
-            channel_info['username'] = userName
+            # # 用户名
+            channel_info['username'] = i['InputProxyChannel'][2]['sourceInputPortDescriptor'][5]['userName']
 
             device_status_list.append(channel_info)
         return device_status_list
@@ -739,12 +929,12 @@ def VCR_data_info(username,password,ip,port):
         # 录像机下方状态
         url_status = 'http://{}:{}/ISAPI/ContentMgmt/InputProxy/channels/status/1'.format(ip, port)
         response_status = requests.get(url_status, auth=HTTPDigestAuth(username, password),timeout=5)
-        print(response_status)
 
         # 当请求状态为200的时候
         if response_status.status_code == 200 and response.status_code == 200:
+
             # device_status_list1 为录像机状态数据   device_status_list2 为录像机信息数据
-            device_status_list1,device_status_list2 = parse_xml(response_status.text),xml_data(response.text)
+            device_status_list1,device_status_list2 = parse_xml(response_status),xml_data(response)
 
             # 合并数据
             merged_data = [
@@ -762,4 +952,9 @@ def VCR_data_info(username,password,ip,port):
 
 
 # print(VCR_data_info('admin','1qaz2wsx!@QW','192.168.7.38',80))
+# print(VCR_data_info('admin','1qaz2wsx!@QW','192.168.7.38',80))
 
+
+#获取监测点的运行状态
+def getDevRunStatus(device_list):
+    getRunStatus(device_list)

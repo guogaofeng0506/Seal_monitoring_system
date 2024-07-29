@@ -94,7 +94,6 @@ def register():
     username = request.form.get('username', None)
     password = request.form.get('password', None)
 
-
     # 去除用户名和密码中的首尾空格
     username = username.strip() if username else None
     password = password.strip() if password else None

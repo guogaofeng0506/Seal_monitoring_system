@@ -1,22 +1,5 @@
-#FROM python:3.10
-#WORKDIR /Seal_system
-#
-#
-#COPY requirements.txt ./
-#RUN pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
-#
-## 安装系统依赖，包括 ping
-#RUN apt-get update && apt-get install -y iputils-ping ffmpeg
-#
-#COPY . .
-#ENV LANG C.UTF-8
-#
-#
-#
-#CMD ["gunicorn", "main:app","-c","./gunicorn.conf.py"]
-
 # 使用官方 Python 运行时作为父镜像
-FROM python:3.10
+FROM python:3.7.7
 
 # 在容器中设置工作目录
 WORKDIR /Seal_system

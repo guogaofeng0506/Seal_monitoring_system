@@ -21,11 +21,15 @@ def insert_predefined_data_command():
             {'id':2,'menu_name':'报警信息','menu_link':None,'menu_order':2,'menu_parent_id':None,'menu_permission_list':json.dumps([1,2])},
             {'id':3,'menu_name':'报警列表','menu_link':None,'menu_order':3,'menu_parent_id':2,'menu_permission_list':json.dumps([1,2])},
             {'id':4,'menu_name':'报警统计','menu_link':None,'menu_order':4,'menu_parent_id':2,'menu_permission_list':json.dumps([1,2])},
-            {'id':5,'menu_name':'算法管理','menu_link':None,'menu_order':5,'menu_parent_id':None,'menu_permission_list':json.dumps([1,2])},
-            {'id':6,'menu_name':'算法仓','menu_link':None,'menu_order':6,'menu_parent_id':5,'menu_permission_list':json.dumps([1,2])},
-            {'id':7,'menu_name':'算法配置','menu_link':None,'menu_order':7,'menu_parent_id':5,'menu_permission_list':json.dumps([1,2])},
+            {'id':5,'menu_name':'算法仓','menu_link':None,'menu_order':5,'menu_parent_id':None,'menu_permission_list':json.dumps([1,2])},
+            {'id':6,'menu_name':'算法配置','menu_link':None,'menu_order':6,'menu_parent_id':5,'menu_permission_list':json.dumps([1,2])},
+            {'id':7,'menu_name':'算法管理','menu_link':None,'menu_order':7,'menu_parent_id':5,'menu_permission_list':json.dumps([1,2])},
             {'id':8,'menu_name':'基础配置','menu_link':None,'menu_order':8,'menu_parent_id':None,'menu_permission_list':json.dumps([1,2])},
             {'id':9,'menu_name':'设备添加','menu_link':None,'menu_order':9,'menu_parent_id':8,'menu_permission_list':json.dumps([1,2])},
+            {'id':10,'menu_name':'录像机设备同步','menu_link':None,'menu_order':10,'menu_parent_id':8,'menu_permission_list':json.dumps([1,2])},
+            {'id':11,'menu_name':'视频质量诊断','menu_link':None,'menu_order':11,'menu_parent_id':None,'menu_permission_list':json.dumps([1,2])},
+            {'id':12,'menu_name':'预案配置','menu_link':None,'menu_order':12,'menu_parent_id':10,'menu_permission_list':json.dumps([1,2])},
+            {'id':13,'menu_name':'诊断结果','menu_link':None,'menu_order':13,'menu_parent_id':10,'menu_permission_list':json.dumps([1,2])},
         ]
 
         for i in meuu_data:
@@ -171,4 +175,30 @@ def insert_predefined_data_command():
             db.session.add(mine_res)
         db.session.commit()
         print('矿数据插入完成！')
+
+    if not Diagnosis_type.query.first():
+
+        diag_data = [
+            {'id':1,'name':'视频抖动','prewarn':30,'warn':70},
+            {'id':2,'name':'条纹干扰','prewarn':30,'warn':70},
+            {'id':3,'name':'视频丢失','prewarn':30,'warn':70},
+            {'id':4,'name':'视频遮挡','prewarn':30,'warn':70},
+            {'id':5,'name':'视频冻结','prewarn':30,'warn':70},
+            {'id':6,'name':'高亮度','prewarn':30,'warn':70},
+            {'id':7,'name':'低亮度','prewarn':30,'warn':70},
+            {'id':8,'name':'视频噪声','prewarn':30,'warn':70},
+            {'id':9,'name':'偏色','prewarn':30,'warn':70},
+            {'id':10,'name':'清晰度','prewarn':30,'warn':70},
+            {'id':11,'name':'场景变化','prewarn':30,'warn':70},
+            {'id':12,'name':'对比度','prewarn':30,'warn':70},
+            {'id':13,'name':'横纹干扰','prewarn':30,'warn':70},
+            {'id':14,'name':'滚动条纹','prewarn':30,'warn':70},
+            {'id':15,'name':'横波干扰','prewarn':30,'warn':70},
+        ]
+
+        for i in diag_data:
+            diag_res = Diagnosis_type(id=i['id'],name=i['name'],prewarn=i['prewarn'],warn=i['warn'])
+            db.session.add(diag_res)
+        db.session.commit()
+        print('诊断类型检测项表！')
 

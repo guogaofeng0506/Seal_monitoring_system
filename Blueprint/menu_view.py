@@ -6,7 +6,6 @@ from flask_jwt_extended import create_access_token,get_jwt_identity,jwt_required
 
 
 
-
 # 创建蓝图，对应的register目录
 menu_view = Blueprint('menu_view', __name__)
 
