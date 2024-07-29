@@ -1,5 +1,16 @@
 from exts import db
+from sqlalchemy import Index, Column, Integer, String, ForeignKey,event
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship,validates
+from datetime import datetime
 
+
+
+# TimestampMixin 是一个方便的 Mixin 类，用于在多个模型中添加创建和更新时间戳字段。
+# TimestampMixin 类与其他模型类一起继承，你可以轻松地将这两个时间戳字段添加到任何模型中，而无需重复代码
+class TimestampMixin(object):
+    created_at = db.Column(db.DateTime, default=datetime.utcnow,comment='创建时间')
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow,comment='更新')
 
 
 # 菜单表
@@ -11,6 +22,7 @@ class Menu(db.Model):
         'comment': '菜单表'
     }
 
+
     id = db.Column(db.Integer, primary_key=True, autoincrement=True, comment='菜单id')
     menu_name = db.Column(db.String(32), comment='菜单名称')
     menu_link = db.Column(db.String(255), comment='url请求地址')
@@ -19,8 +31,9 @@ class Menu(db.Model):
     menu_permission_list = db.Column(db.String(32),comment='权限标识列表')  # 【1,2,3】  parent_id 加权限列表来给出菜单
 
 
+
 # 权限表
-class Permission(db.Model):
+class Permission(db.Model,TimestampMixin):
     """权限表"""
     __tablename__ = "t_permission"
     __table_args__ = {
@@ -31,7 +44,6 @@ class Permission(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True, comment='权限id')
     permission_name = db.Column(db.String(32), comment='权限名称')
     permission_code = db.Column(db.String(32), comment='权限代码')
-
 
 # 用户权限关联表
 class UserPermission(db.Model):
@@ -65,6 +77,24 @@ class User(db.Model):
     end_login_time = db.Column(db.DateTime,comment='最后登录时间')
 
 
+    def get_id(self):
+        return str(self.id)
+
+    # 实现 UserMixin 的方法
+    @property
+    def is_authenticated(self):
+        return True
+
+    @property
+    def is_active(self):
+        return self.user_status == '1'
+
+    @property
+    def is_anonymous(self):
+        return False
+
+
+
 # 矿名称表  单独作为一个表，来关联对应下方设备
 class Mine(db.Model):
     """矿名称表"""
@@ -76,6 +106,59 @@ class Mine(db.Model):
 
     id = db.Column(db.Integer, primary_key=True,autoincrement=True,comment='矿id')  # 整型的主键，会默认设置为自增主键
     mine_name = db.Column(db.String(100),comment='矿名称')
+    combined_field = db.Column(db.String(200), comment='自动拼接字段')  # 新增字段，用于存储自动拼接的内容
+
+
+    # 静态方法
+    @staticmethod
+    def register_listeners():
+        """
+        注册事件监听器
+        """
+        # 新增数据时定义字段发生改变
+        @event.listens_for(Mine, 'before_insert')
+        def before_insert_listener(mapper, connection, target):
+            """
+            监听器函数，在插入新记录之前被调用。
+            自动设置 `combined_field` 字段的值。
+
+            :param mapper: SQLAlchemy 的映射器对象
+            :param connection: 数据库连接对象
+            :param target: 正在插入的目标对象（即 Mine 实例）
+            """
+            print('增加逻辑')  # 打印调试信息，表示触发了插入逻辑
+            # 设置 `combined_field` 的值
+            target.combined_field = f"{target.mine_name} -----------"
+
+        # 数据更新时定义字段发生改变
+        @event.listens_for(Mine, 'before_update')
+        def before_update_listener(mapper, connection, target):
+            """
+            监听器函数，在插入新记录之前被调用。
+            自动设置 `combined_field` 字段的值。
+
+            :param mapper: SQLAlchemy 的映射器对象
+            :param connection: 数据库连接对象
+            :param target: 正在插入的目标对象（即 Mine 实例）
+            """
+            print('修改逻辑')  # 打印调试信息，表示触发了更新逻辑
+            # 设置 `combined_field` 的值
+            target.combined_field = f"{target.mine_name}"
+
+
+    # 序列化
+    def to_json(self):
+        return {
+            'id': self.id,
+            'mine_name': self.mine_name,
+            'combined_field': self.combined_field,
+        }
+
+
+
+
+
+
 
 
 # 录像机同步表
@@ -112,14 +195,15 @@ class Equipment(db.Model):
     }
 
     id = db.Column(db.Integer, primary_key=True,autoincrement=True,comment='设备id')  # 整型的主键，会默认设置为自增主键
-    equipment_type = db.Column(db.Enum('摄像头','录像机','特殊摄像头'),comment='设备类型')
-    manufacturer_type = db.Column(db.Enum('海康', '大华','索尼','宇视','天地伟业','三星'),comment='厂商类型')
+    equipment_type = db.Column(db.Enum('摄像头','录像机','特殊摄像头','浙江双视热成像'),comment='设备类型')
+    manufacturer_type = db.Column(db.Enum('海康', '大华','索尼','宇视','天地伟业','三星','浙江双视'),comment='厂商类型')
     equipment_name = db.Column(db.String(255),comment='设备名称')
     equipment_ip = db.Column(db.String(32),comment='IP地址')
     equipment_uname = db.Column(db.String(32),comment='用户名')
     equipment_password = db.Column(db.String(255),comment='密码')
     equipment_aisles = db.Column(db.Integer,comment='通道')
     equipment_codetype = db.Column(db.Enum('H265','H264'),comment='码流类型')
+    equipment_port = db.Column(db.Integer,comment='端口')
     user_status = db.Column(db.String(32),server_default='1',comment='设备状态 1.启用 0.禁用')
     create_time = db.Column(db.DateTime, server_default=db.func.now(),comment='创建时间')
     flower_frames = db.Column(db.String(255),comment='花帧阈值')
@@ -129,6 +213,7 @@ class Equipment(db.Model):
     VCR_data_id = db.Column(db.Integer,comment='录像机同步id，用于查找同步设备及下方子设备')
     online = db.Column(db.Integer,comment='是否在线  1 在线  2 离线')
     duration_time = db.Column(db.String(255), comment='设备离线持续时间')
+
 
 # 离线信息表
 class Offline_info(db.Model):
@@ -161,9 +246,11 @@ class Algorithm_library(db.Model):
     algorithm_type_list =  db.Column(db.Text,comment='算法检测类型，列表')
     algorithm_version =  db.Column(db.String(32),comment='算法版本')
     algorithm_status =  db.Column(db.String(32),server_default='1',comment='算法状态 1.运行 2.停止')
-    algorithm_trade_type =  db.Column(db.String(32),server_default='1',comment='算法厂商 1.寒武纪 2.算能')
+    algorithm_trade_type =  db.Column(db.String(32),server_default='1',comment='算法厂商 1.寒武纪 2.算能 3 华为')
     algorithm_path = db.Column(db.Text, comment='算法包路径')
     create_time = db.Column(db.DateTime, server_default=db.func.now(),comment='安装时间')
+    algorithm_ps = db.Column(db.Text, comment='算法备注')
+
 
 
 
@@ -187,10 +274,25 @@ class Algorithm_config(db.Model):
 
     """算法配置表"""
     __tablename__ = "t_algorithm_config"
-    __table_args__ = {
-        'mysql_engine': 'InnoDB',
-        'comment': '算法配置表'
-    }
+
+    # __table_args__ = {
+    #     'mysql_engine': 'InnoDB',
+    #     'comment': '算法配置表'
+    # }
+
+    __table_args__ = (
+
+        Index('idx_algorithm_config_mine_id', 'Mine_id'),
+        Index('idx_algorithm_config_equipment_id', 'Equipment_id'),
+        Index('idx_algorithm_config_algorithm_library_id', 'Algorithm_library_id'),
+
+        {
+            'mysql_engine': 'InnoDB',
+            'comment': '算法配置表'
+        },
+
+    )
+
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True, comment='算法配置id')  # 整型的主键，会默认设置为自增主键
     conf_name = db.Column(db.String(32),comment='名称')
@@ -199,7 +301,7 @@ class Algorithm_config(db.Model):
     Equipment_id = db.Column(db.Integer,comment='分析矿监控点id')
     Algorithm_test_type_id = db.Column(db.Integer,comment='检测类型id')
     conf_object = db.Column(db.String(32),comment='分析对象')
-    conf_area = db.Column(db.String(255),comment='分析区域')
+    conf_area = db.Column(db.Text,comment='分析区域')
     status = db.Column(db.String(32),server_default='1',comment='算法配置算法运行状态 1 运行  2 停止')
     shield_status = db.Column(db.String(32),server_default='2',comment='遮挡参数 1 遮挡  2 未遮挡')
     conf_time = db.Column(db.DateTime, server_default=db.func.now(), comment='配置时间')
@@ -208,6 +310,8 @@ class Algorithm_config(db.Model):
     confidence = db.Column(db.String(30),comment='置信度阈值')
     draw_type = db.Column(db.String(20),comment='绘制状态  1矩形 2线条')
     interval_time = db.Column(db.Integer,comment='报警间隔时间')
+    update_time = db.Column(db.DateTime, server_default=db.func.now(),onupdate=db.func.now() ,comment='更新时间')
+    Algorithm_config_ps = db.Column(db.Text, comment='算法配置备注')
     duration_time = db.Column(db.Integer, comment='持续时间')
     conf_img_resolution = db.Column(db.String(20),comment='算法配置图片分辨率')
     # conf_type = db.Column(db.Integer, comment='报警类型   1 预警  2一般  3 严重 4 断电 5 正常')
@@ -217,15 +321,72 @@ class Algorithm_config(db.Model):
 
 
 
+class Algorithm_config_history(db.Model):
+
+    """算法配置历史记录表"""
+    __tablename__ = "t_algorithm_config_history"
+    __table_args__ = (
+
+        Index('idx_algorithm_config_mine_id', 'Mine_id'),
+        Index('idx_algorithm_config_equipment_id', 'Equipment_id'),
+        Index('idx_algorithm_config_algorithm_library_id', 'Algorithm_library_id'),
+
+        {
+            'mysql_engine': 'InnoDB',
+            'comment': '算法配置历史记录表'
+        },
+
+    )
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True, comment='算法配置id')  # 整型的主键，会默认设置为自增主键
+    conf_name = db.Column(db.String(32),comment='名称')
+    Algorithm_library_id=  db.Column(db.Integer,comment='算法id')
+    Mine_id = db.Column(db.Integer,comment='分析矿id')
+    Equipment_id = db.Column(db.Integer,comment='分析矿监控点id')
+    Algorithm_test_type_id = db.Column(db.Integer,comment='检测类型id')
+    conf_object = db.Column(db.String(32),comment='分析对象')
+    conf_area = db.Column(db.Text,comment='分析区域')
+    status = db.Column(db.String(32),server_default='1',comment='算法配置算法运行状态 1 运行  2 停止')
+    shield_status = db.Column(db.String(32),server_default='2',comment='遮挡参数 1 遮挡  2 未遮挡')
+    conf_time = db.Column(db.DateTime, server_default=db.func.now(), comment='配置时间')
+    tem_conf_area = db.Column(db.String(255),comment='热成像检测消除区域')
+    tem_frames = db.Column(db.String(30),comment='温度阈值')
+    confidence = db.Column(db.String(30),comment='置信度阈值')
+    draw_type = db.Column(db.String(20),comment='绘制状态  1矩形 2线条')
+    interval_time = db.Column(db.Integer,comment='报警间隔时间')
+    update_time = db.Column(db.DateTime, server_default=db.func.now(),comment='更新时间')
+    Algorithm_config_ps = db.Column(db.Text, comment='算法配置备注')
+    operation_type = db.Column(db.String(32), comment='操作类型')
+    duration_time = db.Column(db.Integer, comment='持续时间')
+    conf_img_resolution = db.Column(db.String(20),comment='算法配置图片分辨率')
+    image_draw_type = db.Column(db.Integer, comment=('图片结果矩形框  1. 绘制   2.不绘制'))
+    config_id = db.Column(db.Integer, comment='配置id') # 配置id
+
+
+
+
+
 # 算法(预警)结果表
 class Algorithm_result(db.Model):
 
     """算法结果表"""
     __tablename__ = "t_algorithm_result"
-    __table_args__ = {
-        'mysql_engine': 'InnoDB',
-        'comment': '算法结果表'
-    }
+    __table_args__ = (
+
+        # Index('t_algorithm_result_Algorithm_config_id_IDX', 'Algorithm_config_id'),
+        # Index('t_algorithm_result_Mine_id_IDX', 'Mine_id'),
+        # Index('t_algorithm_result_Equipment_id_IDX', 'Equipment_id'),
+        # Index('t_algorithm_result_Equipment_parent_id_IDX', 'Equipment_parent_id'),
+        # Index('t_algorithm_result_res_type_IDX', 'res_type'),
+
+        Index('t_algorithm_result_res_time_IDX', 'res_time'),
+        Index('idx_config_all', 'res_type', 'res_time', 'Algorithm_config_id','Equipment_id','Equipment_parent_id','Mine_id'),
+
+        {
+            'mysql_engine': 'InnoDB',
+            'comment': '算法结果表'
+        },
+    )
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True, comment='算法结果id')  # 整型的主键，会默认设置为自增主键
     Algorithm_config_id = db.Column(db.Integer,comment='算法配置id')
@@ -238,6 +399,10 @@ class Algorithm_result(db.Model):
     res_temperature = db.Column(db.Text,comment='测温数据   0位最大值 1位最小值 2位温度')
     xmin_xmax_ymin_ymax = db.Column(db.Text,comment='检测结果框点坐标')
     res_confidence = db.Column(db.Text,comment='置信度结果')
+    Mine_id = db.Column(db.Integer,comment='分析矿id')  # 矿id
+    Equipment_id = db.Column(db.Integer, comment='分析矿监控点id') # 监控点id
+    Equipment_parent_id = db.Column(db.Integer, comment='分析矿父亲id') # 父亲id用于筛选
+
 
 # 字典表
 class Dict_data(db.Model):
@@ -372,3 +537,11 @@ class Diagnosis_data_old(db.Model):
     db114 = db.Column(db.String(10), comment='滚动条纹')
     db115 = db.Column(db.String(10), comment='横波干扰')
     create_time = db.Column(db.DateTime, server_default=db.func.now(), comment='创建时间')
+
+
+# 事件监听器
+def register_all_listeners():
+    Mine.register_listeners()
+
+# 注册所有表的事件监听器
+register_all_listeners()

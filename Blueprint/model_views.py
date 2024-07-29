@@ -17,6 +17,7 @@ offline_keepTime = 0
 offline_start_time = None
 
 
+
 # --------新筛选，录像机-监控点--------
 @model_views.route('/vcr_em_select', methods=['GET'])
 def vcr_em_select():
@@ -230,4 +231,10 @@ def monitorPoint_offline():
                 #提交会话保存修改
                 db.session.execute(update_query)
                 db.session.commit()
+
     return jsonify({'code': 200, 'msg': '监测点离线数据写入成功'})
+
+
+
+
+
