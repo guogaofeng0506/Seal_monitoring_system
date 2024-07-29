@@ -162,7 +162,7 @@ FILE_SAVE_PATH = get_static_path()
 
 # 预警筛选
 type_status = [
-    {'id': '1', 'value': '预警'},
+    {'id': '1', 'value': '报警'},
     {'id': '2', 'value': '一般'},
     {'id': '3', 'value': '严重'},
     {'id': '4', 'value': '断电'},
@@ -176,7 +176,6 @@ status = [
 ]
 
 # 定时任务状态
-
 vcr_status = [
     {'id': '1', 'value': '启用'},
     {'id': '2', 'value': '禁用'},
@@ -193,7 +192,9 @@ equipment_type = [
     {'id': '1', 'value': '摄像头'},
     {'id': '2', 'value': '录像机'},
     {'id': '3', 'value': '特殊摄像头'},
+    {'id': '4', 'value': '浙江双视热成像'},
 ]
+
 
 # 厂商类型筛选
 manufacturer_type = [
@@ -203,7 +204,9 @@ manufacturer_type = [
     {'id': '4', 'value': '宇视'},
     {'id': '5', 'value': '天地伟业'},
     {'id': '6', 'value': '三星'},
+    {'id': '7', 'value': '浙江双视'},
 ]
+
 
 # 码流类型
 equipment_codetype = [
@@ -732,8 +735,10 @@ def find_parent_id(parent_id):
                 rtsp = f'rtsp://{folder.equipment_uname}:{folder.equipment_password}@{folder.equipment_ip}'
             elif folder.equipment_type == '特殊摄像头':
                 rtsp = get_children_rtsp(folder.parent_id, folder.code, 2)
-            else:
+            elif folder.equipment_type == '录像机':
                 rtsp = get_children_rtsp(folder.parent_id, folder.code, 1)
+            elif folder.equipment_type == '浙江双视热成像':
+                rtsp = 'rtsp://{}:{}@{}:554/live/chn0'.format(folder.equipment_uname, folder.equipment_password, folder.equipment_ip)
 
             # 添加 rtsp 到结果
             result = {
@@ -793,21 +798,19 @@ def children_data(equipment_list,vcr_ids):
 def datainfo(equipment_id,now):
     # 1为以前时间  2为当天时间
     if now == 1:
-        filters = [Equipment.id == equipment_id, db.func.date(Algorithm_result.res_time) < datetime.now().date()]
+        filters = [Algorithm_result.Equipment_id == equipment_id, db.func.date(Algorithm_result.res_time) < datetime.now().date()]
     else:
-        filters = [Equipment.id == equipment_id, db.func.date(Algorithm_result.res_time) == datetime.now().date()]
+        filters = [Algorithm_result.Equipment_id == equipment_id, db.func.date(Algorithm_result.res_time) == datetime.now().date()]
 
     if len(filters) >= 2:
         query_filter = and_(*filters)
     else:
         query_filter = filters[0] if filters else None
 
-
     res = db.session.query(Algorithm_library.algorithm_name,Algorithm_config.conf_name,Algorithm_result.res_time,Algorithm_result.res_type,Algorithm_result.id.label('res_id')
                            ).join(Algorithm_config, Algorithm_config.Algorithm_library_id == Algorithm_library.id
                            ).join(Algorithm_result,Algorithm_config.id == Algorithm_result.Algorithm_config_id
-                           ).join(Mine, Mine.id == Algorithm_config.Mine_id
-                           ).join(Equipment,Equipment.id == Algorithm_config.Equipment_id).filter(query_filter).order_by(Algorithm_result.res_time.desc()).limit(50).all()
+                           ).filter(query_filter).order_by(Algorithm_result.res_time.desc()).limit(50).all()
     data = [{'algorithm_name': i.algorithm_name, 'conf_name':i.conf_name,'res_time':(i.res_time).strftime("%Y-%m-%d %H:%M:%S"),'res_type':type_status[int(i.res_type)-1]['value'],'res_id':i.res_id} for i in res]
     return data
 

@@ -7,7 +7,7 @@ from configs import *
 from modules.Tables import *
 from sqlalchemy import and_,func,update
 from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
-from Video_Quality_Diagnosis.VQD import *
+# from Video_Quality_Diagnosis.VQD import *
 from sqlalchemy.exc import SQLAlchemyError
 
 
@@ -71,27 +71,6 @@ def perform_diagnostic_task(data):
         # 回滚事务
         db.session.rollback()
         print(f'发生错误: {str(e)}')
-
-# 质量诊断数据写入
-# def perform_diagnostic_task(data):
-    #
-    # # 查找诊断数据表，将诊断数据表数据写入诊断历史表
-    # db.session.query(Diagnosis_data).all()
-    # # 清空诊断数据表
-    #
-    # # 数据插入诊断数据表
-    # for i in data:
-    #     res = Diagnosis_data(
-    #         equipment_id=i[0],equipment_ip=i[1],equipment_name=i[2],vcr_ip=i[3],
-    #         diagnosis_type=i[4],db101=i[5],db102=i[6],db103=i[7],
-    #         db104=i[8],db105=i[9],db106=i[10],db107=i[11],
-    #         db108=i[12],db109=i[13],db110=i[14],db111=i[15],
-    #         db112=i[16],db113=i[17],db114=i[18],db115=i[19],
-    #         create_time=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    #     )
-    #     db.session.add(res)
-    #     db.session.commit()
-    # print('诊断数据上传完成！')
 
 
 
